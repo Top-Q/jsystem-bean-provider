@@ -4,3 +4,17 @@
 *.jar
 *.war
 *.ear
+
+# Maven Files
+target
+
+# Eclipse Files
+.settings
+.project
+.classpath
+
+# JSystem Files
+jsystem.properties
+jsystem.properties.by
+jsystem0.*
+
