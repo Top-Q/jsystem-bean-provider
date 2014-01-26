@@ -18,9 +18,9 @@ public class Main {
 		b1.setTitle("the title");
 		b1.setAuthor("Some author");
 		b1.setPages(4);
-		Library l = new Library();
-		l.setBooks(new Book[] {b0,b1});
-		d.buildAndShowDialog(l);
+		Library lib = new Library();
+		lib.setBooks(new Book[] {b0,b1});
+		d.buildAndShowDialog(lib);
 		
 	}
 
