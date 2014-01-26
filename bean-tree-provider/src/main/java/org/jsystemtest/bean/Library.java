@@ -1,18 +1,28 @@
 package org.jsystemtest.bean;
 
-import java.util.List;
 
 public class Library {
 	
-	private Book[] books;
+	private Book book0;
+	
+	private Book book1;
 
-	public Book[] getBooks() {
-		return books;
+	public Book getBook0() {
+		return book0;
 	}
 
-	public void setBooks(Book[] books) {
-		this.books = books;
+	public void setBook0(Book book0) {
+		this.book0 = book0;
 	}
+
+	public Book getBook1() {
+		return book1;
+	}
+
+	public void setBook1(Book book1) {
+		this.book1 = book1;
+	}
+	
 	
 	
 }

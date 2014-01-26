@@ -2,7 +2,7 @@ package org.jsystemtest.bean;
 
 public class Book {
 	
-	private String title;
+	private String title = "The title";
 	private String author;
 	private int pages;
 	public String getTitle() {

@@ -24,10 +24,12 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -58,16 +60,11 @@ import javax.swing.tree.TreePath;
 
 import jsystem.framework.TestRunnerFrame;
 import jsystem.framework.sut.SutEditor;
-import jsystem.framework.sut.SutImpl;
-import jsystem.framework.sut.SutValidationError;
-import jsystem.framework.sut.SutValidator;
 import jsystem.treeui.WaitDialog;
 import jsystem.treeui.actionItems.IgnisAction;
 import jsystem.treeui.images.ImageCenter;
 import jsystem.treeui.suteditor.planner.FilterType;
-import jsystem.treeui.suteditor.planner.SutTreeRenderer;
 import jsystem.treeui.utilities.GenericCellEditor;
-import jsystem.utils.FileUtils;
 import jsystem.utils.StringUtils;
 import jsystem.utils.SwingUtils;
 
@@ -80,22 +77,20 @@ import org.w3c.dom.Document;
  * @author Michael Oziransky
  * 
  */
-public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
-		MouseListener, SutEditor {
+public class BeanTreeDialog extends JDialog implements TreeSelectionListener, MouseListener, SutEditor {
 
-	protected static final Logger log = Logger.getLogger(BeanTreeDialog.class
-			.getName());
+	protected static final Logger log = Logger.getLogger(BeanTreeDialog.class.getName());
 
 	private static final long serialVersionUID = 3140310446094044200L;
 
 	protected JXTreeTable treeTable;
 
-	protected BeanTreeNode selectedNode = null;
+	protected AbstractBeanTreeNode selectedNode = null;
 
 	protected BeanTreeTableModel treeTableModel = null;
 
 	protected boolean enableAddToRoot = true;
-	
+
 	/*
 	 * Window properties
 	 */
@@ -128,11 +123,12 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	private CancelAction cancelAction;
 	private CollapseAction collapseAction;
 	private ExpandAction expandAction;
+	private List<AddChildAction> addChildActionList;
 
 	static {
 		try {
 			File propertiesFile = new File(propertiesFileName);
-			if(propertiesFile.exists()){
+			if (propertiesFile.exists()) {
 				FileInputStream fileInputStream = new FileInputStream(propertiesFile);
 				properties.load(fileInputStream);
 				fileInputStream.close();
@@ -152,7 +148,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	public BeanTreeDialog(String title) {
 		super(TestRunnerFrame.guiMainFrame);
 		setTitle(title);
-		for(String current : BeanTreeTableModel.cNames){
+		for (String current : BeanTreeTableModel.cNames) {
 			map.put(current, this.width / BeanTreeTableModel.cNames.length - 5);
 		}
 		setPropertiesKey(title);
@@ -161,7 +157,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		setPreferredSize(new Dimension(width, height));
 		setLocation(x, y);
 	}
-	
+
 	private void handleLoadWindowProperties() {
 		try {
 			Object widthObject = properties.getProperty(getWidthKey());
@@ -169,50 +165,51 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 			Object xObject = properties.getProperty(getXLocationKey());
 			Object yObject = properties.getProperty(getYLocationKey());
 
-			width = getIntValueFromObject(widthObject,width,screenSizeWidth);
-			height = getIntValueFromObject(heightObject,height,screenSizeHeigh);
-			x = getIntValueFromObject(xObject,x,screenSizeWidth);
-			y = getIntValueFromObject(yObject,y,screenSizeHeigh);
+			width = getIntValueFromObject(widthObject, width, screenSizeWidth);
+			height = getIntValueFromObject(heightObject, height, screenSizeHeigh);
+			x = getIntValueFromObject(xObject, x, screenSizeWidth);
+			y = getIntValueFromObject(yObject, y, screenSizeHeigh);
 
-			for(String currenColumn : BeanTreeTableModel.cNames){
+			for (String currenColumn : BeanTreeTableModel.cNames) {
 				Integer integer = map.get(currenColumn);
-				Object currentObject = properties.getProperty(getKey(toLowerCaseAndReplaceSpacesWith(currenColumn, ".")));
+				Object currentObject = properties
+						.getProperty(getKey(toLowerCaseAndReplaceSpacesWith(currenColumn, ".")));
 				integer = getIntValueFromObject(currentObject, integer, width);
 				map.put(currenColumn, integer);
 			}
 		} catch (Exception e) {
 		}
 	}
-	
-	private void handleSaveWindowProperties(Dimension dim,Point point,JXTreeTable jxTreeTable){
+
+	private void handleSaveWindowProperties(Dimension dim, Point point, JXTreeTable jxTreeTable) {
 		boolean saveToFile = false;
-		if(dim != null && (dim.width != this.width || dim.height != this.height)){
+		if (dim != null && (dim.width != this.width || dim.height != this.height)) {
 			properties.setProperty(getWidthKey(), String.valueOf(dim.width));
 			properties.setProperty(getHeightKey(), String.valueOf(dim.height));
 			saveToFile = true;
 		}
-		if(point != null){
-			if(isLegalValue(point.x, screenSizeWidth) && point.x != this.x){
+		if (point != null) {
+			if (isLegalValue(point.x, screenSizeWidth) && point.x != this.x) {
 				properties.setProperty(getXLocationKey(), String.valueOf(point.x));
 				saveToFile = true;
 			}
-			if(isLegalValue(point.y, screenSizeHeigh) && point.y != this.y){
+			if (isLegalValue(point.y, screenSizeHeigh) && point.y != this.y) {
 				properties.setProperty(getYLocationKey(), String.valueOf(point.y));
 				saveToFile = true;
 			}
 		}
-		if(jxTreeTable != null){
-			for(int index = 0; index < jxTreeTable.getColumnCount(); index++){
+		if (jxTreeTable != null) {
+			for (int index = 0; index < jxTreeTable.getColumnCount(); index++) {
 				TableColumn column = jxTreeTable.getColumn(index);
 				String currentKey = getKey(toLowerCaseAndReplaceSpacesWith(column.getHeaderValue().toString(), "."));
 				int currentColumnWidth = map.get(column.getHeaderValue());
-				if(currentColumnWidth != column.getWidth()){
+				if (currentColumnWidth != column.getWidth()) {
 					properties.setProperty(currentKey, String.valueOf(column.getWidth()));
 					saveToFile = true;
 				}
 			}
 		}
-		if(saveToFile){
+		if (saveToFile) {
 			File propertiesFile = new File(getPropertiesFileName());
 			try {
 				FileOutputStream fileOutpoutStream = new FileOutputStream(propertiesFile);
@@ -223,11 +220,11 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		}
 	}
 
-	private int getIntValueFromObject(Object obj,int defaultValue,int maxSize){
-		if(obj != null){
+	private int getIntValueFromObject(Object obj, int defaultValue, int maxSize) {
+		if (obj != null) {
 			try {
 				int parseInt = Integer.parseInt(obj.toString());
-				if(isLegalValue(parseInt,maxSize)){
+				if (isLegalValue(parseInt, maxSize)) {
 					return parseInt;
 				}
 			} catch (Exception e) {
@@ -235,45 +232,45 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		}
 		return defaultValue;
 	}
-	
-	private boolean isLegalValue(int value,int maxSize){
+
+	private boolean isLegalValue(int value, int maxSize) {
 		return value > -1 && value < maxSize;
 	}
-	
+
 	private void settingColumnsWidth() {
-		for(int index = 0; index < treeTable.getColumnCount(); index++){
+		for (int index = 0; index < treeTable.getColumnCount(); index++) {
 			TableColumn currentColumn = treeTable.getColumn(index);
 			Integer width = map.get(currentColumn.getHeaderValue());
-			if(width != null){
+			if (width != null) {
 				treeTable.getColumn(index).setPreferredWidth(width);
 			}
 		}
 	}
-	
-	private String getKey(String value){
+
+	private String getKey(String value) {
 		return propertiesKey + "." + value;
 	}
-	
-	private String getXLocationKey(){
+
+	private String getXLocationKey() {
 		return getKey("x");
 	}
-	
-	private String getYLocationKey(){
+
+	private String getYLocationKey() {
 		return getKey("y");
 	}
-	
-	private String getWidthKey(){
+
+	private String getWidthKey() {
 		return getKey("width");
 	}
-	
-	private String getHeightKey(){
+
+	private String getHeightKey() {
 		return getKey("height");
 	}
-	
+
 	public void valueChanged(TreeSelectionEvent e) {
 		TreePath path = e.getPath();
 		if (path != null) {
-			selectedNode = (BeanTreeNode) path.getLastPathComponent();
+			selectedNode = (AbstractBeanTreeNode) path.getLastPathComponent();
 			addAction.updateAction();
 			removeAction.updateAction();
 			upAction.updateAction();
@@ -306,7 +303,16 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 			if (clickedPath == null)
 				return;
 			// save the selected node
-			selectedNode = (BeanTreeNode) clickedPath.getLastPathComponent();
+			selectedNode = (AbstractBeanTreeNode) clickedPath.getLastPathComponent();
+			Vector<AbstractBeanTreeNode> hiddenChildren = selectedNode.getHiddenChildren();
+			if (hiddenChildren != null && hiddenChildren.size() > 0) {
+				addChildActionList = new ArrayList<AddChildAction>();
+				for (AbstractBeanTreeNode child : hiddenChildren) {
+					AddChildAction action = new AddChildAction(this, selectedNode, child);
+					addChildActionList.add(action);
+				}
+			}
+
 		}
 
 		// if this is the right button
@@ -322,7 +328,6 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		// ignored
 	}
 
-
 	private JPopupMenu getMenu() {
 		JPopupMenu popup = new JPopupMenu();
 		popup.add(collapseAction);
@@ -332,6 +337,13 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		popup.add(removeAction);
 		popup.add(upAction);
 		popup.add(downAction);
+		popup.add(new JSeparator());
+		if (addChildActionList != null && addChildActionList.size() > 0) {
+			for (AddChildAction action : addChildActionList) {
+				popup.add(action);
+			}
+			addChildActionList.clear();
+		}
 		return popup;
 	}
 
@@ -345,11 +357,9 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		}
 		Collections.sort(processedList);
 
-		Object selected = JOptionPane.showInputDialog(
-				TestRunnerFrame.guiMainFrame,
-				"Select from the System Object list", "Add System Object",
-				JOptionPane.INFORMATION_MESSAGE, null, processedList.toArray(),
-				null);
+		Object selected = JOptionPane.showInputDialog(TestRunnerFrame.guiMainFrame,
+				"Select from the System Object list", "Add System Object", JOptionPane.INFORMATION_MESSAGE, null,
+				processedList.toArray(), null);
 		if (selected == null) {
 			return null;
 		}
@@ -369,9 +379,8 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 
 		setLayout(new BorderLayout());
 
-		JToolBar toolBar = SwingUtils.getJToolBarWithBgImage("Planner toolbar",
-				JToolBar.HORIZONTAL, ImageCenter.getInstance().getImage(
-						ImageCenter.ICON_TOP_TOOLBAR_BG));
+		JToolBar toolBar = SwingUtils.getJToolBarWithBgImage("Planner toolbar", JToolBar.HORIZONTAL, ImageCenter
+				.getInstance().getImage(ImageCenter.ICON_TOP_TOOLBAR_BG));
 
 		toolBar.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 1));
 		toolBar.setFloatable(false);
@@ -386,12 +395,12 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		} finally {
 			WaitDialog.endWaitDialog();
 		}
-		filterCombo.setModel( new DefaultComboBoxModel(BeanTreeTableModel.groups.toArray()){
+		filterCombo.setModel(new DefaultComboBoxModel(BeanTreeTableModel.groups.toArray()) {
 			@Override
 			public int getSize() {
 				return BeanTreeTableModel.groups.toArray().length;
 			}
-			
+
 			@Override
 			public Object getElementAt(int index) {
 				return BeanTreeTableModel.groups.toArray()[index];
@@ -404,8 +413,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		treeTable = new JXTreeTable(treeTableModel) {
 			private static final long serialVersionUID = -8037560184152941754L;
 
-			public Component prepareRenderer(TableCellRenderer renderer,
-					int row, int col) {
+			public Component prepareRenderer(TableCellRenderer renderer, int row, int col) {
 				Component comp = super.prepareRenderer(renderer, row, col);
 				JComponent jcomp = (JComponent) comp;
 				if (comp == jcomp) {
@@ -423,31 +431,22 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 							int i = 0;
 							int tipLineLength = tipLine.length();
 							while (i < (tipLineLength - maxLineLength - 1)) {
-								tip = tip.concat(tipLine.substring(i, i
-										+ maxLineLength));
+								tip = tip.concat(tipLine.substring(i, i + maxLineLength));
 								if (tip.charAt(tip.length() - 1) != ' ') {
-									int indexOfNextSpace = tipLine.indexOf(" ",
-											i + maxLineLength);
+									int indexOfNextSpace = tipLine.indexOf(" ", i + maxLineLength);
 									if (indexOfNextSpace != -1) {
-										tip = tip.concat(tipLine.substring(i
-												+ maxLineLength,
-												indexOfNextSpace));
+										tip = tip.concat(tipLine.substring(i + maxLineLength, indexOfNextSpace));
 										i += (maxLineLength + (indexOfNextSpace - (i + maxLineLength)));
 									} else {
-										tip = tip.concat(tipLine.substring(i
-												+ maxLineLength));
-										i += maxLineLength
-												+ (tipLine.substring(i
-														+ maxLineLength))
-														.length();
+										tip = tip.concat(tipLine.substring(i + maxLineLength));
+										i += maxLineLength + (tipLine.substring(i + maxLineLength)).length();
 									}
 								} else {
 									i += maxLineLength;
 								}
 								tip = tip.concat("<br>");
 							}
-							tip = tip.concat(tipLine
-									.substring(i, tipLineLength));
+							tip = tip.concat(tipLine.substring(i, tipLineLength));
 						} else {
 							tip = tip.concat(tipLine);
 						}
@@ -470,7 +469,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 
 		treeTable.getTreeSelectionModel().addTreeSelectionListener(this);
 
-		treeTable.setTreeCellRenderer(new SutTreeRenderer());
+		treeTable.setTreeCellRenderer(new BeanTreeRenderer());
 		treeTable.addMouseListener(this);
 
 		treeTable.setSelectionBackground(Color.LIGHT_GRAY);
@@ -481,14 +480,12 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		treeTableHeader.setBackground(new Color(0xe1, 0xe4, 0xe6));
 		treeTableHeader.setFont(new Font("sansserif", Font.BOLD, 11));
 
-		add(SwingUtils.getJScrollPaneWithWaterMark(ImageCenter.getInstance()
-				.getAwtImage(ImageCenter.ICON_TEST_TREE_BG), treeTable),
-				BorderLayout.CENTER);
+		add(SwingUtils.getJScrollPaneWithWaterMark(
+				ImageCenter.getInstance().getAwtImage(ImageCenter.ICON_TEST_TREE_BG), treeTable), BorderLayout.CENTER);
 
 		// Create the bottom panel
-		JPanel bottomPanel = SwingUtils.getJPannelWithBgImage(ImageCenter
-				.getInstance().getImage(ImageCenter.ICON_SCEANRIO_TOOLBAR_BG),
-				0);
+		JPanel bottomPanel = SwingUtils.getJPannelWithBgImage(
+				ImageCenter.getInstance().getImage(ImageCenter.ICON_SCEANRIO_TOOLBAR_BG), 0);
 		bottomPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
 
 		saveButton = new JButton(saveAction);
@@ -504,17 +501,12 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
 				if (treeTableModel.getHasChanged()) {
-					int ans = JOptionPane
-							.showConfirmDialog(
-									BeanTreeDialog.this,
-									getTitle()
-											+ " has been changed. Would you like to save changes?",
-									getTitle(),
-									JOptionPane.YES_NO_CANCEL_OPTION,
-									JOptionPane.WARNING_MESSAGE);
+					int ans = JOptionPane.showConfirmDialog(BeanTreeDialog.this, getTitle()
+							+ " has been changed. Would you like to save changes?", getTitle(),
+							JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
 					switch (ans) {
 					case JOptionPane.YES_OPTION:
-						treeTableModel.toXml();
+						// treeTableModel.toXml();
 						dispose();
 						break;
 					case JOptionPane.NO_OPTION:
@@ -551,8 +543,8 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	 */
 	public Document editSut(final Document doc, boolean withSave) throws Exception {
 		buildAndShowDialog(doc);
-		if (withSave){
-			handleSaveWindowProperties(this.getSize(),this.getLocation(),treeTable);
+		if (withSave) {
+			handleSaveWindowProperties(this.getSize(), this.getLocation(), treeTable);
 		}
 		return doc;
 	}
@@ -582,21 +574,23 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 		});
 		toolbar.add(filterBy);
 
-//		filter = new JTextField(10);
-//		filter.setToolTipText("Enter text to filter");
-//		filter.addKeyListener(this);
-		
+		// filter = new JTextField(10);
+		// filter.setToolTipText("Enter text to filter");
+		// filter.addKeyListener(this);
+
 		filterCombo = new JComboBox();
 		filterCombo.setEditable(true);
 		filterCombo.setToolTipText("Enter text to filter");
-		filter = (JTextField)filterCombo.getEditor().getEditorComponent();
+		filter = (JTextField) filterCombo.getEditor().getEditorComponent();
 		filter.getDocument().addDocumentListener(new DocumentListener() {
 			public void removeUpdate(DocumentEvent e) {
 				fieldChange();
 			}
+
 			public void insertUpdate(DocumentEvent e) {
 				fieldChange();
 			}
+
 			public void changedUpdate(DocumentEvent e) {
 				fieldChange();
 			}
@@ -608,7 +602,6 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 			}
 		});
 
-		
 		toolbar.add(filterCombo);
 
 		toolbar.add(addAction);
@@ -656,7 +649,6 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	public void keyTyped(KeyEvent e) {
 	}
 
-
 	public boolean isEnableAddToRoot() {
 		return enableAddToRoot;
 	}
@@ -666,7 +658,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	}
 
 	public void setPropertiesKey(String propertiesKey) {
-		if(propertiesKey != null && !propertiesKey.trim().isEmpty()){
+		if (propertiesKey != null && !propertiesKey.trim().isEmpty()) {
 			this.propertiesKey = toLowerCaseAndReplaceSpacesWith(propertiesKey, ".");
 		}
 	}
@@ -676,18 +668,49 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener,
 	}
 
 	public void setPropertiesFileName(String propertiesFileName) {
-		if(propertiesFileName != null && !propertiesFileName.trim().isEmpty()){
+		if (propertiesFileName != null && !propertiesFileName.trim().isEmpty()) {
 			BeanTreeDialog.propertiesFileName = toLowerCaseAndReplaceSpacesWith(propertiesFileName, "") + ".properties";
 		}
 	}
-	
-	private String toLowerCaseAndReplaceSpacesWith(String data,String replaceWith){
+
+	private String toLowerCaseAndReplaceSpacesWith(String data, String replaceWith) {
 		return data.trim().toLowerCase().replaceAll("\\s+", replaceWith);
 	}
 
 	public String getPropertiesFileName() {
 		return propertiesFileName;
 	}
+}
+
+class AddChildAction extends IgnisAction {
+	private static final long serialVersionUID = 1L;
+	private BeanTreeDialog dialog;
+	private AbstractBeanTreeNode father, child;
+
+	AddChildAction(BeanTreeDialog dialog, AbstractBeanTreeNode father, AbstractBeanTreeNode child) {
+		String name = "Add " + child.getName();
+		putValue(Action.SHORT_DESCRIPTION, name);
+		putValue(Action.NAME, name);
+		putValue(Action.ACTION_COMMAND_KEY, name);
+		this.dialog = dialog;
+		this.father = father;
+		this.child = child;
+		setEnabled(true);
+	}
+
+	@Override
+	public void actionPerformed(ActionEvent e) {
+		dialog.treeTableModel.setChildToVisible(father, child);
+	}
+
+	public void updateAction() {
+		if (dialog.selectedNode.isLeaf()) {
+			setEnabled(false);
+		} else {
+			setEnabled(true);
+		}
+	}
+
 }
 
 class ExpandAction extends IgnisAction {
@@ -704,8 +727,7 @@ class ExpandAction extends IgnisAction {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		dialog.treeTable.expandPath(dialog.treeTable
-				.getPathForRow(dialog.treeTable.getSelectedRow()));
+		dialog.treeTable.expandPath(dialog.treeTable.getPathForRow(dialog.treeTable.getSelectedRow()));
 	}
 
 	public void updateAction() {
@@ -731,8 +753,7 @@ class CollapseAction extends IgnisAction {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		dialog.treeTable.collapsePath(dialog.treeTable
-				.getPathForRow(dialog.treeTable.getSelectedRow()));
+		dialog.treeTable.collapsePath(dialog.treeTable.getPathForRow(dialog.treeTable.getSelectedRow()));
 	}
 
 	public void updateAction() {
@@ -761,46 +782,52 @@ class SaveAction extends IgnisAction {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		dialog.treeTableModel.toXml();
-		Document doc = dialog.treeTableModel.getDocument();
-		try {
-			FileUtils.saveDocumentToFile(doc, new File("test.xml"));
-		} catch (Exception e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-			return;
-		}
-		List<SutValidationError> errors = new ArrayList<SutValidationError>();
-		ArrayList<SutValidationError> nodeErrors = new ArrayList<SutValidationError>();
-		((BeanTreeNode)dialog.treeTableModel.getRoot()).getValidationErrors(nodeErrors);
-		errors.addAll(nodeErrors);
-		SutValidator[] validators = SutImpl.getSutValidators(doc);
-		if(validators != null && validators.length > 0){
-			for(SutValidator validator : validators){
-				SutValidationError[] verrors = validator.getValidationErrors(doc);
-				if(verrors != null && verrors.length > 0){
-					Collections.addAll(errors, verrors);
-				}
-			}
-		}
-		if(errors.isEmpty()){
-			dialog.treeTableModel.setHasChanged(false);
-		} else {
-			StringBuffer errorBuffer = new StringBuffer();
-			for(SutValidationError error : errors){
-				errorBuffer.append(error.getSevirity().name());
-				errorBuffer.append(": ");
-				errorBuffer.append(error.getMessage());
-				errorBuffer.append("\r\n");
-			}
-			int result = JOptionPane.showConfirmDialog(dialog, "Following error were found:\r\n" + errorBuffer.toString() + "Save?","Sut Validation Errors",JOptionPane.YES_NO_CANCEL_OPTION);
-			if(result == JOptionPane.CANCEL_OPTION){
-				return;
-			} else if(result == JOptionPane.YES_OPTION){
-				dialog.treeTableModel.setHasChanged(false);
-			}
-		}
-		dialog.dispose();
+		// dialog.treeTableModel.toXml();
+		// Document doc = dialog.treeTableModel.getDocument();
+		// try {
+		// FileUtils.saveDocumentToFile(doc, new File("test.xml"));
+		// } catch (Exception e1) {
+		// // TODO Auto-generated catch block
+		// e1.printStackTrace();
+		// return;
+		// }
+		// List<SutValidationError> errors = new
+		// ArrayList<SutValidationError>();
+		// ArrayList<SutValidationError> nodeErrors = new
+		// ArrayList<SutValidationError>();
+		// ((AbstractBeanTreeNode)
+		// dialog.treeTableModel.getRoot()).getValidationErrors(nodeErrors);
+		// errors.addAll(nodeErrors);
+		// SutValidator[] validators = SutImpl.getSutValidators(doc);
+		// if (validators != null && validators.length > 0) {
+		// for (SutValidator validator : validators) {
+		// SutValidationError[] verrors = validator.getValidationErrors(doc);
+		// if (verrors != null && verrors.length > 0) {
+		// Collections.addAll(errors, verrors);
+		// }
+		// }
+		// }
+		// if (errors.isEmpty()) {
+		// dialog.treeTableModel.setHasChanged(false);
+		// } else {
+		// StringBuffer errorBuffer = new StringBuffer();
+		// for (SutValidationError error : errors) {
+		// errorBuffer.append(error.getSevirity().name());
+		// errorBuffer.append(": ");
+		// errorBuffer.append(error.getMessage());
+		// errorBuffer.append("\r\n");
+		// }
+		// int result = JOptionPane.showConfirmDialog(dialog,
+		// "Following error were found:\r\n" + errorBuffer.toString() + "Save?",
+		// "Sut Validation Errors",
+		// JOptionPane.YES_NO_CANCEL_OPTION);
+		// if (result == JOptionPane.CANCEL_OPTION) {
+		// return;
+		// } else if (result == JOptionPane.YES_OPTION) {
+		// dialog.treeTableModel.setHasChanged(false);
+		// }
+		// }
+		// dialog.dispose();
 	}
 }
 
@@ -837,132 +864,87 @@ class AddAction extends IgnisAction {
 		putValue(Action.SHORT_DESCRIPTION, "Add");
 		putValue(Action.NAME, "Add");
 		putValue(Action.ACTION_COMMAND_KEY, "add");
-		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_TEST_PASS));
-		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_TEST_PASS));
+		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_TEST_PASS));
+		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_TEST_PASS));
 		this.dialog = dialog;
 		setEnabled(false);
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		BeanTreeNode node = dialog.selectedNode;
-		ArrayList<String> optionalSOs;
+		AbstractBeanTreeNode node = dialog.selectedNode;
 		String baseClass = null;
-		System.out.println(node.getType());
+		Enumeration<AbstractBeanTreeNode> children = null;
 		switch (node.getType()) {
-		case MAIN_SO:
+		case BEAN:
 			baseClass = node.getClassName();
 			break;
-		case EXTENTION_ARRAY_SO:
-			baseClass = node.getClassName();
-			break;
-		case ARRAY_SO:
-			baseClass = node.getArraySuperClassName();
-			break;
-		case EXTENTION_SO:
+		// case EXTENTION_ARRAY_SO:
+		// baseClass = node.getClassName();
+		// break;
+		// case ARRAY_SO:
+		// baseClass = node.getArraySuperClassName();
+		// break;
+		case PRIMITIVE:
 			baseClass = node.getClassName();
 			break;
 		case ROOT:
 			baseClass = null;
 			break;
-		case SUB_SO:
-		case TAG:
-		case OPTIONAL_TAG:
+		// case SUB_SO:
+		// case TAG:
+		// case OPTIONAL_TAG:
 		default:
 			return;
 		}
 		try {
-			optionalSOs = dialog.treeTableModel
-					.getBeansOfType(baseClass);
+
+			children = dialog.selectedNode.children();
 		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING,
-					"Fail to process system objects", e1);
+			BeanTreeDialog.log.log(Level.WARNING, "Fail to process system objects", e1);
 			return;
 		}
-
-		String className;
-
-		// Check if we have a choice of system objects, if so let the user
-		// choose the correct system object
-		if (optionalSOs.size() == 1) {
-			className = optionalSOs.get(0);
-		} else {
-			className = dialog.selectFromSOList(optionalSOs);
+		while (children.hasMoreElements()) {
+			System.out.println(children.nextElement().toString());
 		}
 
-		if (className == null) {
-			return;
-		}
-
-		// Give the user to input the name for the system object
-
-		try {
-			switch (node.getType()) {
-			case ROOT:
-				String soName = JOptionPane.showInputDialog(dialog,
-						"Set the System Object name", "Add System Object",
-						JOptionPane.INFORMATION_MESSAGE);
-				if (soName == null) {
-					return;
-				}
-				dialog.treeTableModel.addSystemObject(node, soName, className);
-				expandSubPath(dialog.treeTable
-						.getPathForRow(dialog.treeTable.getSelectedRow()));
-				break;
-			case EXTENTION_ARRAY_SO:
-			case ARRAY_SO:
-				dialog.treeTableModel.addArraySystemObject(node,
-						node.getName(), className);
-				expandSubPath(dialog.treeTable
-						.getPathForRow(dialog.treeTable.getSelectedRow()));
-
-				break;
-			case EXTENTION_SO:
-				dialog.treeTableModel.addSystemObject((BeanTreeNode)node.getParent(), node.getName(), className);
-				dialog.treeTableModel.removeObject(node, false);
-				break;
-			}
-		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING, "Fail to add system object",
-					e1);
-		}
 	}
-	  public void expandSubPath(TreePath p) {
-		  TreeModel data = dialog.treeTableModel;
-		  if(p == null){
-			  return;
-		  }
-		  Object node = p.getLastPathComponent();
-		    while (true) {
-		         int count = data.getChildCount(node);
-		         if (count == 0) break;
-		         node = data.getChild(node, count - 1);
-		         p = p.pathByAddingChild(node);
-		    }
-		    dialog.treeTable.scrollPathToVisible(p);
-		  }
+
+	public void expandSubPath(TreePath p) {
+		TreeModel data = dialog.treeTableModel;
+		if (p == null) {
+			return;
+		}
+		Object node = p.getLastPathComponent();
+		while (true) {
+			int count = data.getChildCount(node);
+			if (count == 0)
+				break;
+			node = data.getChild(node, count - 1);
+			p = p.pathByAddingChild(node);
+		}
+		dialog.treeTable.scrollPathToVisible(p);
+	}
 
 	public void updateAction() {
 		switch (dialog.selectedNode.getType()) {
-		case SUB_SO:
-		case MAIN_SO:
-		case TAG:
-		case OPTIONAL_TAG:
-			putValue(Action.SHORT_DESCRIPTION, "Add");
-			setEnabled(false);
-			break;
+		// case SUB_SO:
+		case BEAN:
+			// case TAG:
+			// case OPTIONAL_TAG:
+			// putValue(Action.SHORT_DESCRIPTION, "Add");
+			// setEnabled(false);
+			// break;
 		case ROOT:
 			putValue(Action.SHORT_DESCRIPTION, "Add System Object");
 			setEnabled(dialog.enableAddToRoot);
 			break;
-		case EXTENTION_ARRAY_SO:
-		case ARRAY_SO:
-			putValue(Action.SHORT_DESCRIPTION, "Add New Array Element");
-			setEnabled(true);
-			break;
-		case EXTENTION_SO:
+		// case EXTENTION_ARRAY_SO:
+		// case ARRAY_SO:
+		// putValue(Action.SHORT_DESCRIPTION, "Add New Array Element");
+		// setEnabled(true);
+		// break;
+		case PRIMITIVE:
 			putValue(Action.SHORT_DESCRIPTION, "Add System Object");
 			setEnabled(true);
 			break;
@@ -985,10 +967,8 @@ class RemoveAction extends IgnisAction {
 		putValue(Action.SHORT_DESCRIPTION, "Remove");
 		putValue(Action.NAME, "Remove");
 		putValue(Action.ACTION_COMMAND_KEY, "Remove");
-		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_DELETE));
-		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_DELETE));
+		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_DELETE));
+		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_DELETE));
 		this.dialog = dialog;
 		setEnabled(false);
 	}
@@ -998,27 +978,26 @@ class RemoveAction extends IgnisAction {
 		try {
 			dialog.treeTableModel.removeObject(dialog.selectedNode, true);
 		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING,
-					"Fail to remove system objects", e1);
+			BeanTreeDialog.log.log(Level.WARNING, "Fail to remove system objects", e1);
 		}
 	}
 
 	public void updateAction() {
 		switch (dialog.selectedNode.getType()) {
-		case TAG:
-			putValue(Action.SHORT_DESCRIPTION, "Remove Property");
-			setEnabled(true);
-			break;
-		case OPTIONAL_TAG:
-		case EXTENTION_ARRAY_SO:
-		case SUB_SO:
-		case EXTENTION_SO:
+		// case TAG:
+		// putValue(Action.SHORT_DESCRIPTION, "Remove Property");
+		// setEnabled(true);
+		// break;
+		// case OPTIONAL_TAG:
+		// case EXTENTION_ARRAY_SO:
+		// case SUB_SO:
+		case PRIMITIVE:
 		case ROOT:
 			putValue(Action.SHORT_DESCRIPTION, "Remove");
 			setEnabled(false);
 			break;
-		case ARRAY_SO:
-		case MAIN_SO:
+		// case ARRAY_SO:
+		case BEAN:
 			putValue(Action.SHORT_DESCRIPTION, "Remove System Object");
 			setEnabled(true);
 			break;
@@ -1029,6 +1008,7 @@ class RemoveAction extends IgnisAction {
 		}
 	}
 }
+
 /**
  * Up action
  */
@@ -1040,10 +1020,8 @@ class UpAction extends IgnisAction {
 		putValue(Action.SHORT_DESCRIPTION, "Up");
 		putValue(Action.NAME, "Up");
 		putValue(Action.ACTION_COMMAND_KEY, "Up");
-		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_UP));
-		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_UP));
+		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_UP));
+		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_UP));
 		this.dialog = dialog;
 		setEnabled(false);
 	}
@@ -1051,26 +1029,25 @@ class UpAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			//dialog.treeTableModel.removeObject(dialog.selectedNode, true);
+			// dialog.treeTableModel.removeObject(dialog.selectedNode, true);
 			dialog.treeTableModel.moveUp(dialog.selectedNode);
 		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING,
-					"Fail to move object up system objects", e1);
+			BeanTreeDialog.log.log(Level.WARNING, "Fail to move object up system objects", e1);
 		}
 	}
 
 	public void updateAction() {
 		switch (dialog.selectedNode.getType()) {
-		case OPTIONAL_TAG:
-		case EXTENTION_ARRAY_SO:
+		// case OPTIONAL_TAG:
+		// case EXTENTION_ARRAY_SO:
 		case ROOT:
-		case EXTENTION_SO:
-		case TAG:
-			setEnabled(false);
-			break;
-		case SUB_SO:
-		case ARRAY_SO:
-		case MAIN_SO:
+		case PRIMITIVE:
+			// case TAG:
+			// setEnabled(false);
+			// break;
+			// case SUB_SO:
+			// case ARRAY_SO:
+		case BEAN:
 			setEnabled(dialog.treeTableModel.canMoveUp(dialog.selectedNode));
 			break;
 		default:
@@ -1079,6 +1056,7 @@ class UpAction extends IgnisAction {
 		}
 	}
 }
+
 /**
  * Up action
  */
@@ -1090,10 +1068,8 @@ class DownAction extends IgnisAction {
 		putValue(Action.SHORT_DESCRIPTION, "Down");
 		putValue(Action.NAME, "Down");
 		putValue(Action.ACTION_COMMAND_KEY, "Down");
-		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_DOWN));
-		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(
-				ImageCenter.ICON_DOWN));
+		putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_DOWN));
+		putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_DOWN));
 		this.dialog = dialog;
 		setEnabled(false);
 	}
@@ -1101,26 +1077,25 @@ class DownAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			//dialog.treeTableModel.removeObject(dialog.selectedNode, true);
+			// dialog.treeTableModel.removeObject(dialog.selectedNode, true);
 			dialog.treeTableModel.moveDown(dialog.selectedNode);
 		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING,
-					"Fail to move object down system objects", e1);
+			BeanTreeDialog.log.log(Level.WARNING, "Fail to move object down system objects", e1);
 		}
 	}
 
 	public void updateAction() {
 		switch (dialog.selectedNode.getType()) {
-		case OPTIONAL_TAG:
-		case EXTENTION_ARRAY_SO:
+		// case OPTIONAL_TAG:
+		// case EXTENTION_ARRAY_SO:
 		case ROOT:
-		case EXTENTION_SO:
-		case TAG:
+		case PRIMITIVE:
+			// case TAG:
 			setEnabled(false);
 			break;
-		case SUB_SO:
-		case ARRAY_SO:
-		case MAIN_SO:
+		// case SUB_SO:
+		// case ARRAY_SO:
+		case BEAN:
 			setEnabled(dialog.treeTableModel.canMoveDown(dialog.selectedNode));
 			break;
 		default:
@@ -1129,18 +1104,18 @@ class DownAction extends IgnisAction {
 		}
 	}
 }
+
 class ComboBoxRenderer extends BasicComboBoxRenderer {
 
 	private static final long serialVersionUID = 1L;
 
-	public Component getListCellRendererComponent(JList list, Object value,
-			int index, boolean isSelected, boolean cellHasFocus) {
+	public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected,
+			boolean cellHasFocus) {
 		if (isSelected) {
 			setBackground(list.getSelectionBackground());
 			setForeground(list.getSelectionForeground());
 			if (-1 < index) {
-				list.setToolTipText((value == null) ? "" : new String(value
-						.toString()));
+				list.setToolTipText((value == null) ? "" : new String(value.toString()));
 			}
 		} else {
 			setBackground(Color.white);
