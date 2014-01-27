@@ -685,22 +685,22 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 class AddChildAction extends IgnisAction {
 	private static final long serialVersionUID = 1L;
 	private BeanTreeDialog dialog;
-	private AbstractBeanTreeNode father, child;
+	private AbstractBeanTreeNode parent, child;
 
-	AddChildAction(BeanTreeDialog dialog, AbstractBeanTreeNode father, AbstractBeanTreeNode child) {
+	AddChildAction(BeanTreeDialog dialog, AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
 		String name = "Add " + child.getName();
 		putValue(Action.SHORT_DESCRIPTION, name);
 		putValue(Action.NAME, name);
 		putValue(Action.ACTION_COMMAND_KEY, name);
 		this.dialog = dialog;
-		this.father = father;
+		this.parent = parent;
 		this.child = child;
 		setEnabled(true);
 	}
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
-		dialog.treeTableModel.setChildToVisible(father, child);
+		dialog.treeTableModel.setChildToVisible(parent, child);
 	}
 
 	public void updateAction() {

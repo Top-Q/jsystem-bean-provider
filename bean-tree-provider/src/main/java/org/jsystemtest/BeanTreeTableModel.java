@@ -25,7 +25,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 
 	static HashSet<String> groups = new HashSet<String>();
 
-	static protected String[] cNames = { "Name", "Class name", "Current value", "New Value", "Java documentation" };
+	static protected String[] cNames = { "Name", "Class name", "Current value", "Default Value", "Java documentation" };
 
 	public BeanTreeTableModel(DefaultMutableTreeNode root) {
 		super(root);
@@ -176,6 +176,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	public static BeanTreeTableModel createNewModel(Object root) {
 		rootNode = new BeanRootNode(null, AbstractBeanTreeNode.NodeType.ROOT, root.getClass().getSimpleName(),
 				root.getClass(), root);
+        rootNode.initChildren();
 		return new BeanTreeTableModel(rootNode);// rootNode);
 	}
 
@@ -202,15 +203,15 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 		modelSupport.fireNewRoot();
 	}
 
-	public void setChildToVisible(AbstractBeanTreeNode father, AbstractBeanTreeNode child) {
+	public void setChildToVisible(AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
 		int childIndex = -1;
-		if ((childIndex = father.getHiddenChildren().indexOf(child)) < 0) {
+		if ((childIndex = parent.getHiddenChildren().indexOf(child)) < 0) {
 			// Child is not exist in the hidden children list
 			return;
 		}
-		father.add(child);
-		father.hiddenChildren.remove(childIndex);
-		modelSupport.fireChildAdded(new TreePath(father.getPath()), father.getChildCount() - 1, child);
+		parent.add(child);
+		parent.hiddenChildren.remove(childIndex);
+		modelSupport.fireChildAdded(new TreePath(parent.getPath()), parent.getChildCount() - 1, child);
 	}
 
 	private static AbstractBeanTreeNode[] getPathToRoot(AbstractBeanTreeNode aNode) {
