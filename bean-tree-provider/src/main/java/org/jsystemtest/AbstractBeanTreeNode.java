@@ -34,7 +34,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		initChildren();
 	}
 
-	@SuppressWarnings("unchecked")
+    @SuppressWarnings("unchecked")
 	protected void initChildren() {
 		if (null == children) {
 			children = new Vector<AbstractBeanTreeNode>();
@@ -100,6 +100,9 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		if (type.toString().contains("int")) {
 			return false;
 		}
+        if (type.toString().contains("boolean")) {
+            return false;
+        }
 		if (type.toString().contains("float")) {
 			return false;
 		}
@@ -113,9 +116,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 			return false;
 		}
 		if (type.toString().contains("short")) {
-			return false;
-		}
-		if (type.toString().contains("boolean")) {
 			return false;
 		}
 		if (type.toString().contains("char")) {

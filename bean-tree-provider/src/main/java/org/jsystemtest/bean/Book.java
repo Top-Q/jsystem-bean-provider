@@ -5,6 +5,7 @@ public class Book {
 	private String title = "The title";
 	private String author;
 	private int pages;
+
 	public String getTitle() {
 		return title;
 	}
