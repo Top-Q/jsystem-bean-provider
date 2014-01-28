@@ -1,9 +1,12 @@
 package org.jsystemtest;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Type;
+import java.lang.reflect.*;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Vector;
+
+import org.apache.commons.lang.ClassUtils;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
@@ -22,16 +25,31 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	 * Type of the node.
 	 */
 	private NodeType type;
+    private Class<?> objType;
 //	private AbstractBeanTreeNode parentNode;
 	private String name;
 	protected Vector<AbstractBeanTreeNode> hiddenChildren;
+    Object defaultValue;
 
-	public AbstractBeanTreeNode(MutableTreeNode parent, NodeType type, String name, Class<?> objType, Object userObject) {
+    public Class<?> getObjType() {
+        return objType;
+    }
+
+    public Object getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(Object defaultValue) {
+        this.defaultValue = defaultValue;
+    }
+
+	public AbstractBeanTreeNode(MutableTreeNode parent, NodeType type, String name, Class<?> objType, Object userObject, Object defaultValue) {
 		super(userObject);
 		this.type = type;
+        this.objType = objType;
 		this.name = name;
 		this.parent = parent;
-		initChildren();
+        this.defaultValue = defaultValue;
 	}
 
     @SuppressWarnings("unchecked")
@@ -43,39 +61,86 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 			hiddenChildren = new Vector<AbstractBeanTreeNode>();
 		}
 
-		if (null == userObject) {
-			return;
+        Object objInstance = userObject;
+        if (null == userObject) {
+            try {
+                System.out.println(this.objType.getName() + "   :   " + objType.getSimpleName() + "   :   " + objType.getCanonicalName());
+                if(objType.isArray()) {
+
+                    objInstance = Array.newInstance(objType, 0);
+
+                } else {
+                    objInstance = Class.forName(this.objType.getCanonicalName()).newInstance();
+                }
+            } catch (InstantiationException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                return;
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                return;
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                return;
+            }
 		}
-		Method[] methods = userObject.getClass().getMethods();
+		Method[] methods = objInstance.getClass().getMethods();
 		for (Method method : methods) {
-			if ((method.getName().startsWith("get") || method.getName().startsWith("is"))
+            String methodName = method.getName();
+			if ((methodName.startsWith("get") || methodName.startsWith("is"))
 					&& method.getParameterTypes().length == 0) {
 				if (method.getName().equals("getClass")) {
 					continue;
 				}
-				if (userObject.getClass().getName().equals("java.lang.String")) {
-					if (method.getName().equals("isEmpty") || method.getName().equals("getBytes")) {
+				if (objInstance.getClass().getName().equals("java.lang.String")) {
+                    return;
+					/*if (methodName.equals("isEmpty") || methodName.equals("getBytes")) {
 						continue;
-					}
+					}*/
 				}
 				try {
 					Class<?> type = method.getReturnType();
-					Object childObj = method.invoke(userObject, new Object[] {});
-					Object newInstance = userObject.getClass().newInstance();
-					//TODO : Add factory
-					final AbstractBeanTreeNode node = new BeanObjectTreeNode(this, NodeType.BEAN, method.getName()
-							.replaceFirst("get", ""), type, childObj);
+					Object childObj = method.invoke(objInstance, new Object[]{});
 
-					if (childObj.equals(method.invoke(newInstance, new Object[] {}))) {
-						//It is important to set the parent to null unless we want null pointer exception later on
-						node.setParent(null);
-						hiddenChildren.add(node);
-					}else {
-						children.add(node);
-						
-					}
+                    // Works only when there's a default constructor...
+                    Object newInstance = objInstance.getClass().newInstance();
+                    //Object newInstance = objInstance != null ? objInstance.getClass().newInstance() : Class.forName(this.objType.getCanonicalName()).newInstance();
+					//TODO : Add factory
+                    // TODO 3 - We need to make sure that methods that start with "is" are not named like: "isolateFromList" or "issueToLog"
+                    // TODO 3 - Handle Arrays & Lists
+
+                    String name = methodName.startsWith("get") ? methodName.replaceFirst("get", "") : methodName.replaceFirst("is", "");
+                    Object defaultValue = method.invoke(newInstance, new Object[] {});
+                    /*final */AbstractBeanTreeNode node = new BeanObjectTreeNode(this, name, type, childObj, defaultValue);
+                    node.initChildren();
+
+                    if (type.isArray()) {
+                        if(childObj != null) {
+                            int length = Array.getLength(childObj);
+                            for (int i = 0; i < length; i ++) {
+                                Object arrayElement = Array.get(childObj, i);
+                                String componentType = type.getComponentType().getSimpleName();
+                                Object arrayElementDefaultValue = this.getArrayElementDefaultValue(componentType.getClass());
+
+                                AbstractBeanTreeNode arrayChildNode = new BeanObjectTreeNode(node, componentType, arrayElement.getClass(), arrayElement, arrayElementDefaultValue);
+                                node.children.add(arrayChildNode);
+                                arrayChildNode.initChildren();
+                            }
+                        }
+                    }
+
+
+                    if (childObj == null || childObj.equals(defaultValue)) {
+                    //It is important to set the parent to null unless we want null pointer exception later on
+                        node.setParent(null);
+                        hiddenChildren.add(node);
+                    }else {
+                        children.add(node);
+
+                    }
+
 				} catch (Exception e) {
-					System.out.println("Failed to invoke method " + method.getName());
+					System.out.println("Failed to invoke method " + methodName);
+                    e.printStackTrace();
 				}
 			}
 		}
@@ -87,13 +152,12 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	}
 	
 	public boolean isLeaf() {
-		// return (type == NodeType.PRIMITIVE
-		// || type == NodeType.EXTENTION_ARRAY_SO || type == NodeType.TAG ||
-		// type == NodeType.OPTIONAL_TAG);
-		return false;
+        return this.getChildCount() == 0;
 	}
 
 	private static boolean isBean(Type type) {
+        // TODO 3 - might contain "int[]" or other strings that contain "int", "short" etc.
+        // Beans should have getters and setters methods, default constructor and implement Serializable
 		if (type.toString().contains("java.lang.String")) {
 			return false;
 		}
@@ -123,8 +187,46 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		}
 
 		return true;
-
 	}
+
+    public boolean isTypePrimitiveOrString() {
+        return (objType == String.class
+                || objType == Boolean.class
+                || isTypePrimitiveNumber()
+                || objType == Character.class);
+    }
+
+    public boolean isTypePrimitiveNumber() {
+        return(objType.isPrimitive()
+                || objType == Integer.class
+                || objType == Long.class
+                || objType == Float.class
+                || objType == Double.class
+                || objType == Byte.class
+                || objType == Short.class);
+    }
+
+    public Object getArrayElementDefaultValue(Class cls) {
+        if (cls == Boolean.TYPE) {
+            return Boolean.FALSE;
+        } else if (cls == Byte.TYPE) {
+            return (byte) 0;
+        } else if (cls == Short.TYPE) {
+            return (short) 0;
+        } else if (cls == Integer.TYPE) {
+            return 0;
+        } else if (cls == Long.TYPE) {
+            return (long) 0;
+        }  else if (cls == Float.TYPE) {
+            return 0.0F;
+        }  else if (cls == Double.TYPE) {
+            return 0.0;
+        }  else if (cls == Character.TYPE) {
+            return ((char) 0);
+        }  else {
+            return null;
+        }
+    }
 
 //	public AbstractBeanTreeNode getParent() {
 //		return parent;
@@ -165,7 +267,27 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	public Vector<AbstractBeanTreeNode> getHiddenChildren() {
 		return hiddenChildren;
 	}
-	
-	
+
+
+    private <T> T instantiate(Class<T> cls, Map<String, ? extends Object> args) throws Exception
+    {
+        // Create instance of the given class
+        final Constructor<T> constr = (Constructor<T>) cls.getConstructors()[0];
+        final List<Object> params = new ArrayList<Object>();
+        for (Class<?> pType : constr.getParameterTypes())
+        {
+            params.add((pType.isPrimitive()) ? ClassUtils.primitiveToWrapper(pType).newInstance() : null);
+        }
+        final T instance = constr.newInstance(params.toArray());
+
+        // Set separate fields
+        for (Map.Entry<String, ? extends Object> arg : args.entrySet()) {
+            Field f = cls.getDeclaredField(arg.getKey());
+            f.setAccessible(true);
+            f.set(instance, arg.getValue());
+        }
+
+        return instance;
+    }
 
 }

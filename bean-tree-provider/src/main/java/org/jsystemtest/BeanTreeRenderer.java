@@ -5,9 +5,7 @@ package org.jsystemtest;
 
 import java.awt.Component;
 
-import javax.swing.JLabel;
-import javax.swing.JTree;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.tree.TreeCellRenderer;
 
 import jsystem.treeui.images.ImageCenter;
@@ -26,8 +24,12 @@ public class BeanTreeRenderer implements TreeCellRenderer {
 			boolean leaf, int row, boolean hasFocus) {
 
 		String stringValue = tree.convertValueToText(value, isSelected, expanded, leaf, row, hasFocus);
-		
+
+
+
 		JLabel label = new JLabel(stringValue);
+        Component component = label;
+
 
 		if (value instanceof AbstractBeanTreeNode) {
 			AbstractBeanTreeNode node = (AbstractBeanTreeNode)value;
@@ -55,15 +57,28 @@ public class BeanTreeRenderer implements TreeCellRenderer {
 				label.setToolTipText("System Under Test");
 				break;
 			case BEAN:
-				label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_DEVICE));
+
+                if(node.getObjType() == Boolean.class) {
+                    JCheckBox checkBox = new JCheckBox(stringValue);
+                    if(((Boolean)(node.getUserObject())).booleanValue() == true) {
+                        checkBox.setSelected(true);
+                    }
+                    component = checkBox;
+                } else if(node.getObjType() == String.class) {
+				    label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_COMMANT));
+                } else if(node.isTypePrimitiveNumber()) {
+                    label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_DEVICE));
+                } else {
+                    label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_PATH));
+                }
 				break;
 			case PRIMITIVE:
 				label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_DEVICE));
 				break;
 			}
 		}
-		
-		return label;
+
+		return component;
 	}
 	
 	

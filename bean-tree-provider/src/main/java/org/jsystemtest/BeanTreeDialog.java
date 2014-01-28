@@ -68,6 +68,7 @@ import jsystem.treeui.utilities.GenericCellEditor;
 import jsystem.utils.StringUtils;
 import jsystem.utils.SwingUtils;
 
+import org.jdesktop.swingx.JXTable;
 import org.jdesktop.swingx.JXTreeTable;
 import org.w3c.dom.Document;
 
@@ -463,13 +464,16 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		};
 		treeTable.setRootVisible(true);
 		GenericCellEditor gce = new GenericCellEditor(treeTableModel);
-		for (int i = 0; i < treeTable.getColumnCount(); i++) {
+		/*for (int i = 0; i < treeTable.getColumnCount(); i++) {
 			treeTable.getColumnModel().getColumn(i).setCellEditor(gce);
-		}
+		} */
+        treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(new JXTable.NumberEditor());
+        //treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(new JXTable.NumberEditor());
 
 		treeTable.getTreeSelectionModel().addTreeSelectionListener(this);
 
 		treeTable.setTreeCellRenderer(new BeanTreeRenderer());
+        //treeTable.setTreeCellRenderer(new CheckBoxRenderer());
 		treeTable.addMouseListener(this);
 
 		treeTable.setSelectionBackground(Color.LIGHT_GRAY);
@@ -479,6 +483,9 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		JTableHeader treeTableHeader = treeTable.getTableHeader();
 		treeTableHeader.setBackground(new Color(0xe1, 0xe4, 0xe6));
 		treeTableHeader.setFont(new Font("sansserif", Font.BOLD, 11));
+
+
+
 
 		add(SwingUtils.getJScrollPaneWithWaterMark(
 				ImageCenter.getInstance().getAwtImage(ImageCenter.ICON_TEST_TREE_BG), treeTable), BorderLayout.CENTER);
@@ -976,7 +983,8 @@ class RemoveAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			dialog.treeTableModel.removeObject(dialog.selectedNode, true);
+			//dialog.treeTableModel.removeObject(dialog.selectedNode, true);
+            dialog.treeTableModel.setChildToHidden(dialog.selectedNode);
 		} catch (Exception e1) {
 			BeanTreeDialog.log.log(Level.WARNING, "Fail to remove system objects", e1);
 		}
@@ -1029,7 +1037,6 @@ class UpAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			// dialog.treeTableModel.removeObject(dialog.selectedNode, true);
 			dialog.treeTableModel.moveUp(dialog.selectedNode);
 		} catch (Exception e1) {
 			BeanTreeDialog.log.log(Level.WARNING, "Fail to move object up system objects", e1);
@@ -1077,7 +1084,6 @@ class DownAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			// dialog.treeTableModel.removeObject(dialog.selectedNode, true);
 			dialog.treeTableModel.moveDown(dialog.selectedNode);
 		} catch (Exception e1) {
 			BeanTreeDialog.log.log(Level.WARNING, "Fail to move object down system objects", e1);

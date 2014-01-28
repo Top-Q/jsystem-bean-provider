@@ -23,6 +23,7 @@ public class Main {
         b0.setPages(new Page[] { pageB0 } );
         b0.setGreetings("Thank you!");
         b0.setEditions(new int[] {1, 3, 5});
+        b0.setPublication("Boston");
 
 		Book b1 = new Book();
 		b1.setTitle("A new title");

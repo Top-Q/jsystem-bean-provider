@@ -1,8 +1,6 @@
 package org.jsystemtest;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 import javax.swing.JTable;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -25,7 +23,20 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 
 	static HashSet<String> groups = new HashSet<String>();
 
-	static protected String[] cNames = { "Name", "Class name", "Current value", "Default Value", "Java documentation" };
+    static enum ColNames {
+        NAME("Name"), CUR_VAL("Current Value"), DEF_VAL("Default Value"), CLS_NAME("Class Name"), DESC("Description");
+        private String columnName;
+        private ColNames(String columnName) {
+            this.columnName = columnName;
+        }
+
+        @Override
+        public String toString(){
+            return columnName;
+        }
+    }
+
+	static protected String[] cNames = Arrays.toString(ColNames.values()).replaceAll("\\[|]", "").split(", ");
 
 	public BeanTreeTableModel(DefaultMutableTreeNode root) {
 		super(root);
@@ -50,14 +61,27 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 			switch (column) {
 			case 0:
 				return beanTreeNode.getName();
-			case 1: // 'Class name' column
-				return beanTreeNode.getClassName();
+			case 1: // 'Current value' column
+                //return beanTreeNode.getValue();
+                Object userObj = beanTreeNode.getUserObject();
+                if(userObj != null) {
+                    Class<?> type = userObj.getClass();
+
+                    //return type.isPrimitive() || type == String.class ? beanTreeNode.getValue() : "";
+                    return beanTreeNode.isTypePrimitiveOrString() ? beanTreeNode.getValue() : "";
+                }
+
 			case 2: // 'Default value' column
-				// return beanTreeNode.getDefaultValue();
-				return beanTreeNode.getValue();
-			case 3: // 'Actual value' column
-				// return beanTreeNode.getActualValue();
-				return "";
+                Object defaultValue;
+                try {
+                    defaultValue = beanTreeNode.getDefaultValue().toString();
+                } catch (Exception e) {
+                    defaultValue = "";
+                }
+                return defaultValue;
+                //return "";
+			case 3: // 'Class name' column
+                return beanTreeNode.getClassName();
 			case 4: // 'Java documentation' column
 				// return beanTreeNode.getJavadoc().replaceAll("\n", "\n, ");
 				return "";
@@ -106,72 +130,67 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 
 	}
 
-	public void removeObject(AbstractBeanTreeNode node, boolean b) {
-		// TODO Auto-generated method stub
 
+    public void removeObject(AbstractBeanTreeNode node, boolean b) {
+
+    }
+
+	public void setChildToHidden(AbstractBeanTreeNode node) {
+        AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(node.getParent()));
+        int nodeIndex = parent.getIndex(node);
+        if(parent.hiddenChildren == null) {
+            parent.hiddenChildren = new Vector<AbstractBeanTreeNode>();
+        }
+        parent.remove(node);
+        parent.hiddenChildren.add(node);
+        node.setParent(null);
+        modelSupport.fireChildRemoved(new TreePath(parent.getPath()), nodeIndex, node);
 	}
 
-	/*
-	 * public void moveUp(BeanTreeNode selectedNode) { // TODO Auto-generated
-	 * method stub
-	 * 
-	 * }
-	 */
+
+
+    // Moshe's impl.
+    public boolean canMoveUp(AbstractBeanTreeNode selectedNode) {
+        AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) selectedNode.getParent();
+        if (null != parentNode) {
+            int indexInParent = this.getIndexOfChild(parentNode, selectedNode);
+            return (indexInParent > 0);
+        }
+        return false;
+    }
+
+    // Moshe's impl.
+    public boolean canMoveDown(AbstractBeanTreeNode selectedNode) {
+        AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) selectedNode.getParent();
+        if (null != parentNode) {
+            int indexInParent = this.getIndexOfChild(parentNode, selectedNode);
+            return (indexInParent < (this.getChildCount(parentNode) - 1));
+        }
+        return false;
+    }
 
 	// Moshe's impl.
 	public void moveUp(AbstractBeanTreeNode selectedNode) {
-		AbstractBeanTreeNode parent = (AbstractBeanTreeNode) selectedNode.getParent();
-		int selectedNodeIndex = this.getIndexOfChild(parent, selectedNode);
-		int upperNodeIndex = (selectedNodeIndex - 1);
-		AbstractBeanTreeNode upperNode = (AbstractBeanTreeNode) this.getChild(parent, upperNodeIndex);
-		parent.remove(selectedNodeIndex);
-		TreePath parentPath = new TreePath(parent.getPath());
-		/**
-		 * TODO5 - handle ARRAY_SO if(selectedNode.getType() ==
-		 * BeanTreeNode.NodeType.ARRAY_SO){
-		 * selectedNode.setIndex(upperNodeIndex);
-		 * upperNode.setIndex(selectedNodeIndex); }
-		 **/
-		modelSupport.fireChildRemoved(parentPath, selectedNodeIndex, selectedNode);
-		parent.insert(selectedNode, upperNodeIndex);
-		modelSupport.fireChildAdded(parentPath, upperNodeIndex, selectedNode);
+        this.move(selectedNode, true);
 	}
 
 	// Moshe's impl.
 	public void moveDown(AbstractBeanTreeNode selectedNode) {
-		AbstractBeanTreeNode parent = (AbstractBeanTreeNode) selectedNode.getParent();
-		int selectedNodeIndex = this.getIndexOfChild(parent, selectedNode);
-		int belowNodeIndex = (selectedNodeIndex + 1);
-		AbstractBeanTreeNode belowNode = (AbstractBeanTreeNode) this.getChild(parent, belowNodeIndex);
-		parent.remove(selectedNodeIndex);
-		TreePath parentPath = new TreePath(parent.getPath());
-		/**
-		 * TODO5 - handle ARRAY_SO if(selectedNode.getType() ==
-		 * NodeType.ARRAY_SO) { int index = selectedNode.getIndex();
-		 * selectedNode.setIndex(belowNode.getIndex());
-		 * belowNode.setIndex(index); }
-		 **/
-		modelSupport.fireChildRemoved(parentPath, selectedNodeIndex, selectedNode);
-		parent.insert(selectedNode, belowNodeIndex);
-		modelSupport.fireChildAdded(parentPath, belowNodeIndex, selectedNode);
+        this.move(selectedNode, false);
 	}
 
-	// Moshe's impl.
-	public boolean canMoveUp(AbstractBeanTreeNode selectedNode) {
-		AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) selectedNode.getParent();
-		if (false == selectedNode.isLeaf() && null != parentNode) {
-			int indexInParent = this.getIndexOfChild(parentNode, selectedNode);
-			return (indexInParent > 0);
-		}
-		return false;
-	}
+    private void move(AbstractBeanTreeNode selectedNode, boolean upDirection) {
+        AbstractBeanTreeNode parent = (AbstractBeanTreeNode) selectedNode.getParent();
+        int selectedNodeIndex = this.getIndexOfChild(parent, selectedNode);
+        int switchNodeIndex = selectedNodeIndex + (upDirection ? -1 : 1);
+        parent.remove(selectedNodeIndex);
+        TreePath parentPath = new TreePath(parent.getPath());
 
-	/*
-	 * public void moveDown(BeanTreeNode selectedNode) { // TODO Auto-generated
-	 * method stub
-	 * 
-	 * }
-	 */
+        modelSupport.fireChildRemoved(parentPath, selectedNodeIndex, selectedNode);
+        parent.insert(selectedNode, switchNodeIndex);
+        modelSupport.fireChildAdded(parentPath, switchNodeIndex, selectedNode);
+    }
+
 
 	public static BeanTreeTableModel createNewModel(Object root) {
 		rootNode = new BeanRootNode(null, AbstractBeanTreeNode.NodeType.ROOT, root.getClass().getSimpleName(),
@@ -189,16 +208,6 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 		return hasChanged;
 	}
 
-	// Moshe's impl.
-	public boolean canMoveDown(AbstractBeanTreeNode selectedNode) {
-		AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) selectedNode.getParent();
-		if (false == selectedNode.isLeaf() && null != parentNode) {
-			int indexInParent = this.getIndexOfChild(parentNode, selectedNode);
-			return (indexInParent < (this.getChildCount(parentNode) - 1));
-		}
-		return false;
-	}
-
 	public void refresh() {
 		modelSupport.fireNewRoot();
 	}
@@ -206,7 +215,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	public void setChildToVisible(AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
 		int childIndex = -1;
 		if ((childIndex = parent.getHiddenChildren().indexOf(child)) < 0) {
-			// Child is not exist in the hidden children list
+			// Child doesn't exist in the hidden children list
 			return;
 		}
 		parent.add(child);
@@ -233,6 +242,16 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	public CellEditorType getEditorType(JTable table, int row, int column) {
 		// TODO Auto-generated method stub
 		return null;
+        /*String columnName = table.getColumnName(column);
+        if(columnName.toLowerCase().equals("current value")){
+            return CellEditorType.STRING;
+        } else {
+
+            return super.getEditorType(table, row,
+                    column);
+
+            return null;
+        }*/
 	}
 
 	public String[] getOptions(JTable table, int row, int column) {
@@ -247,10 +266,12 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 		 **/
 		AbstractBeanTreeNode node = (AbstractBeanTreeNode) ((JXTreeTable) table).getPathForRow(row)
 				.getLastPathComponent();
+
+        return node.getObjType();
 		/*
 		 * if (node.getType() != null) { return node.getType(); }
 		 */
-		return null;
+		//return null;
 	}
 
 	public boolean isValidData(JTable table, int row, int column, Object enteredValue) {
