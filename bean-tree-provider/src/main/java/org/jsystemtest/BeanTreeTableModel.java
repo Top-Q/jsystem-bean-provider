@@ -68,7 +68,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
                     Class<?> type = userObj.getClass();
 
                     //return type.isPrimitive() || type == String.class ? beanTreeNode.getValue() : "";
-                    return beanTreeNode.isTypePrimitiveOrString() ? beanTreeNode.getValue() : "";
+                    return AbstractBeanTreeNode.isTypePrimitiveOrString(beanTreeNode.objType) ? beanTreeNode.getValue() : "";
                 }
 
 			case 2: // 'Default value' column
@@ -87,10 +87,42 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 				return "";
 			}
 		} catch (SecurityException se) {
+
 		}
 
 		return null;
 	}
+
+    /*
+         * JTable uses this method to determine the default renderer/
+         * editor for each cell.  If we didn't implement this method,
+         * then the last column would contain text ("true"/"false"),
+         * rather than a check box.
+         */
+    /*public Class getColumnClass(int c) {
+        return getValueAt(0, c).getClass();
+    }*/
+
+    public boolean isCellEditable(Object node, int col) {
+        //Note that the data/cell address is constant,
+        //no matter where the cell appears onscreen.
+        if (col == ColNames.CUR_VAL.ordinal()) {
+            if(node instanceof AbstractBeanTreeNode) {
+                return AbstractBeanTreeNode.isTypePrimitiveOrString(((AbstractBeanTreeNode) node).objType);
+            }
+        }
+
+        return false;
+    }
+
+    public void valueForPathChanged(TreePath path, Object newValue) {
+        System.out.println("Value changed to: " + newValue + "\nIn: " + path.toString());
+    }
+
+    /*public void setValueAt(Object value, int row, int col) {
+        data[row][col] = value;
+        fireTableCellUpdated(row, col);
+    }*/
 
 	public int getChildCount(Object parent) {
 		if (parent instanceof AbstractBeanTreeNode) {
@@ -191,6 +223,14 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         modelSupport.fireChildAdded(parentPath, switchNodeIndex, selectedNode);
     }
 
+    public void addArrayChildNode(AbstractBeanTreeNode parent) {
+        AbstractBeanTreeNode child = parent.addNewDefaultArrayElementChild();
+        if(null != child) {
+            TreePath parentPath = new TreePath(parent.getPath());
+            modelSupport.fireChildAdded(parentPath, parent.getChildCount() - 1, child);
+        }
+    }
+
 
 	public static BeanTreeTableModel createNewModel(Object root) {
 		rootNode = new BeanRootNode(null, AbstractBeanTreeNode.NodeType.ROOT, root.getClass().getSimpleName(),
@@ -240,7 +280,10 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	}
 
 	public CellEditorType getEditorType(JTable table, int row, int column) {
-		// TODO Auto-generated method stub
+        System.out.println("Editor Type: ");
+        Object obj = table.getModel().getValueAt(row, column);
+        System.out.println(obj.toString());
+        //if(objCellEditorType.INT
 		return null;
         /*String columnName = table.getColumnName(column);
         if(columnName.toLowerCase().equals("current value")){
@@ -269,7 +312,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 
         return node.getObjType();
 		/*
-		 * if (node.getType() != null) { return node.getType(); }
+		 * if (node.getNodeType() != null) { return node.getNodeType(); }
 		 */
 		//return null;
 	}

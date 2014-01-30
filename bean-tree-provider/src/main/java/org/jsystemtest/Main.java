@@ -9,7 +9,7 @@ import java.io.File;
 public class Main {
 
 	public static void main(String[] args) throws Exception {
-		BeanTreeDialog d = new BeanTreeDialog("title");
+		BeanTreeDialog d = new BeanTreeDialog("CloudBand's Inspection Tree");
 
         Book b0 = new Book();
 		b0.setTitle("The title");

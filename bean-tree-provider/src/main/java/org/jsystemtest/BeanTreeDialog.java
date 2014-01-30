@@ -270,6 +270,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 	public void valueChanged(TreeSelectionEvent e) {
 		TreePath path = e.getPath();
+
 		if (path != null) {
 			selectedNode = (AbstractBeanTreeNode) path.getLastPathComponent();
 			addAction.updateAction();
@@ -882,8 +883,14 @@ class AddAction extends IgnisAction {
 		AbstractBeanTreeNode node = dialog.selectedNode;
 		String baseClass = null;
 		Enumeration<AbstractBeanTreeNode> children = null;
-		switch (node.getType()) {
+		switch (node.getNodeType()) {
 		case BEAN:
+            Object userObj = node.getUserObject();
+            if(userObj != null && userObj.getClass().isArray()) {
+                // Add a new child instance to the array
+                //node.addNewDefaultArrayElementChild();
+                dialog.treeTableModel.addArrayChildNode(node);
+            }
 			baseClass = node.getClassName();
 			break;
 		// case EXTENTION_ARRAY_SO:
@@ -934,7 +941,7 @@ class AddAction extends IgnisAction {
 	}
 
 	public void updateAction() {
-		switch (dialog.selectedNode.getType()) {
+		switch (dialog.selectedNode.getNodeType()) {
 		// case SUB_SO:
 		case BEAN:
 			// case TAG:
@@ -991,7 +998,7 @@ class RemoveAction extends IgnisAction {
 	}
 
 	public void updateAction() {
-		switch (dialog.selectedNode.getType()) {
+		switch (dialog.selectedNode.getNodeType()) {
 		// case TAG:
 		// putValue(Action.SHORT_DESCRIPTION, "Remove Property");
 		// setEnabled(true);
@@ -1044,7 +1051,7 @@ class UpAction extends IgnisAction {
 	}
 
 	public void updateAction() {
-		switch (dialog.selectedNode.getType()) {
+		switch (dialog.selectedNode.getNodeType()) {
 		// case OPTIONAL_TAG:
 		// case EXTENTION_ARRAY_SO:
 		case ROOT:
@@ -1091,7 +1098,7 @@ class DownAction extends IgnisAction {
 	}
 
 	public void updateAction() {
-		switch (dialog.selectedNode.getType()) {
+		switch (dialog.selectedNode.getNodeType()) {
 		// case OPTIONAL_TAG:
 		// case EXTENTION_ARRAY_SO:
 		case ROOT:

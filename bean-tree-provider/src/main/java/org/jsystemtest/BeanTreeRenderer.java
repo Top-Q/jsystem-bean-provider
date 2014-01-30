@@ -51,7 +51,7 @@ public class BeanTreeRenderer implements TreeCellRenderer {
 			}
 
 			// Set a specific icon for each node type
-			switch(node.getType()) {
+			switch(node.getNodeType()) {
 			case ROOT:
 				label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_SETUP));
 				label.setToolTipText("System Under Test");
@@ -66,7 +66,7 @@ public class BeanTreeRenderer implements TreeCellRenderer {
                     component = checkBox;
                 } else if(node.getObjType() == String.class) {
 				    label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_COMMANT));
-                } else if(node.isTypePrimitiveNumber()) {
+                } else if( AbstractBeanTreeNode.isObjTypePrimitiveNumber(node.objType)) {
                     label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_DEVICE));
                 } else {
                     label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_PATH));

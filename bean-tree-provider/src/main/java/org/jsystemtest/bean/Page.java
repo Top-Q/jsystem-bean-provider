@@ -8,7 +8,7 @@ package org.jsystemtest.bean;
  * To change this template use File | Settings | File Templates.
  */
 public class Page {
-    private int pageCount;
+    private int pageCount = 220;
 
     public Page() {}
 
