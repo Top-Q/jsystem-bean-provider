@@ -118,6 +118,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 	private AddAction addAction;
 	private RemoveAction removeAction;
+    private HideAction hideAction;
 	private UpAction upAction;
 	private DownAction downAction;
 	private SaveAction saveAction;
@@ -275,6 +276,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 			selectedNode = (AbstractBeanTreeNode) path.getLastPathComponent();
 			addAction.updateAction();
 			removeAction.updateAction();
+            hideAction.updateAction();
 			upAction.updateAction();
 			downAction.updateAction();
 			expandAction.updateAction();
@@ -339,6 +341,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		popup.add(removeAction);
 		popup.add(upAction);
 		popup.add(downAction);
+        popup.add(hideAction);
 		popup.add(new JSeparator());
 		if (addChildActionList != null && addChildActionList.size() > 0) {
 			for (AddChildAction action : addChildActionList) {
@@ -374,6 +377,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		removeAction = new RemoveAction(this);
 		upAction = new UpAction(this);
 		downAction = new DownAction(this);
+        hideAction = new HideAction(this);
 		cancelAction = new CancelAction(this);
 		saveAction = new SaveAction(this);
 		expandAction = new ExpandAction(this);
@@ -617,6 +621,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		toolbar.add(removeAction);
 		toolbar.add(upAction);
 		toolbar.add(downAction);
+        toolbar.add(hideAction);
 	}
 
 	public void keyPressed(KeyEvent e) {
@@ -948,7 +953,14 @@ class AddAction extends IgnisAction {
 			// case OPTIONAL_TAG:
 			// putValue(Action.SHORT_DESCRIPTION, "Add");
 			// setEnabled(false);
-			// break;
+            Object userObj = dialog.selectedNode.getUserObject();
+            if(userObj != null && userObj.getClass().isArray()) {
+                putValue(Action.SHORT_DESCRIPTION, "Add Array Element");
+                setEnabled(true);
+            } else {
+                setEnabled(false);
+            }
+			break;
 		case ROOT:
 			putValue(Action.SHORT_DESCRIPTION, "Add System Object");
 			setEnabled(dialog.enableAddToRoot);
@@ -990,10 +1002,10 @@ class RemoveAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			//dialog.treeTableModel.removeObject(dialog.selectedNode, true);
-            dialog.treeTableModel.setChildToHidden(dialog.selectedNode);
+			dialog.treeTableModel.removeArrayChildNode(dialog.selectedNode, true);
+//            dialog.treeTableModel.setChildToHidden(dialog.selectedNode);
 		} catch (Exception e1) {
-			BeanTreeDialog.log.log(Level.WARNING, "Fail to remove system objects", e1);
+			BeanTreeDialog.log.log(Level.WARNING, "Fail to remove array element", e1);
 		}
 	}
 
@@ -1013,8 +1025,9 @@ class RemoveAction extends IgnisAction {
 			break;
 		// case ARRAY_SO:
 		case BEAN:
-			putValue(Action.SHORT_DESCRIPTION, "Remove System Object");
-			setEnabled(true);
+            boolean setToEnabled = AbstractBeanTreeNode.isParentAnArray(dialog.selectedNode);
+            putValue(Action.SHORT_DESCRIPTION, "Remove Array Element");
+            setEnabled(setToEnabled);
 			break;
 		default:
 			putValue(Action.SHORT_DESCRIPTION, "Remove");
@@ -1022,6 +1035,54 @@ class RemoveAction extends IgnisAction {
 
 		}
 	}
+}
+
+
+/**
+ * Remove action
+ */
+class HideAction extends IgnisAction {
+    private static final long serialVersionUID = 1L;
+    private BeanTreeDialog dialog;
+
+    HideAction(BeanTreeDialog dialog) {
+        putValue(Action.SHORT_DESCRIPTION, "Hide");
+        putValue(Action.NAME, "Hide");
+        putValue(Action.ACTION_COMMAND_KEY, "Hide");
+        putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_EMPTY));
+        putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_EMPTY));
+        this.dialog = dialog;
+        setEnabled(false);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        try {
+            dialog.treeTableModel.setChildToHidden(dialog.selectedNode);
+        } catch (Exception e1) {
+            BeanTreeDialog.log.log(Level.WARNING, "Fail to hide node", e1);
+        }
+    }
+
+    public void updateAction() {
+        switch (dialog.selectedNode.getNodeType()) {
+            case PRIMITIVE:
+            case ROOT:
+                putValue(Action.SHORT_DESCRIPTION, "Hide");
+                setEnabled(false);
+                break;
+            // case ARRAY_SO:
+            case BEAN:
+
+                putValue(Action.SHORT_DESCRIPTION, "Hide Object");
+                setEnabled(true);
+                break;
+            default:
+                putValue(Action.SHORT_DESCRIPTION, "Hide");
+                setEnabled(false);
+
+        }
+    }
 }
 
 /**

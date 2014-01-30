@@ -163,8 +163,13 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	}
 
 
-    public void removeObject(AbstractBeanTreeNode node, boolean b) {
+    public void removeArrayChildNode(AbstractBeanTreeNode node, boolean b) {
+        AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(node.getParent()));
+        int nodeIndex = parent.getIndex(node);
 
+        parent.remove(node);
+        node.setParent(null);
+        modelSupport.fireChildRemoved(new TreePath(parent.getPath()), nodeIndex, node);
     }
 
 	public void setChildToHidden(AbstractBeanTreeNode node) {

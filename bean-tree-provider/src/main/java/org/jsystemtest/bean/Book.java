@@ -8,6 +8,9 @@ public class Book {
 	private String author;
     private String publication = "Harvard";
 	private Page[] pages;
+    private String[] glossary;
+    private int[][][] wordLocations;
+
     private int year;
     private int[] editions;
     private Boolean eBookAvailable = false;
@@ -83,5 +86,21 @@ public class Book {
 
     public void setEditions(int[] editions) {
         this.editions = editions;
+    }
+
+    public String[] getGlossary() {
+        return glossary;
+    }
+
+    public void setGlossary(String[] glossary) {
+        this.glossary = glossary;
+    }
+
+    public int[][][] getWordLocations() {
+        return wordLocations;
+    }
+
+    public void setWordLocations(int[][][] wordLocations) {
+        this.wordLocations = wordLocations;
     }
 }
