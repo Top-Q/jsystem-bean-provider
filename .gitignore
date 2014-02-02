@@ -20,3 +20,4 @@ jsystem0.*
 
 # Intellij Files
 *.iml
+.idea/

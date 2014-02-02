@@ -24,12 +24,13 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	/**
 	 * Type of the node.
 	 */
-	private NodeType type;
-    private Class<?> objType;
-//	private AbstractBeanTreeNode parentNode;
+	private NodeType nodeType;
+    protected Vector<AbstractBeanTreeNode> hiddenChildren;
+
+    protected Class<?> objType;
 	private String name;
-	protected Vector<AbstractBeanTreeNode> hiddenChildren;
-    Object defaultValue;
+    protected Object defaultValue;
+    protected String getMethodInParent;
 
     public Class<?> getObjType() {
         return objType;
@@ -43,13 +44,22 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         this.defaultValue = defaultValue;
     }
 
-	public AbstractBeanTreeNode(MutableTreeNode parent, NodeType type, String name, Class<?> objType, Object userObject, Object defaultValue) {
+    public String getGetMethodInParent() {
+        return getMethodInParent;
+    }
+
+    public void setGetMethodInParent(String getMethodInParent) {
+        this.getMethodInParent = getMethodInParent;
+    }
+
+    public AbstractBeanTreeNode(MutableTreeNode parent, NodeType nodeType, String name, Class<?> objType, Object userObject, Object defaultValue, String getMethodInParent) {
 		super(userObject);
-		this.type = type;
+		this.nodeType = nodeType;
         this.objType = objType;
 		this.name = name;
 		this.parent = parent;
         this.defaultValue = defaultValue;
+        this.getMethodInParent = getMethodInParent;
 	}
 
     @SuppressWarnings("unchecked")
@@ -63,26 +73,13 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
         Object objInstance = userObject;
         if (null == userObject) {
-            try {
-                System.out.println(this.objType.getName() + "   :   " + objType.getSimpleName() + "   :   " + objType.getCanonicalName());
+            //try {
                 if(objType.isArray()) {
-
                     objInstance = Array.newInstance(objType, 0);
-
                 } else {
-                    objInstance = Class.forName(this.objType.getCanonicalName()).newInstance();
+                    objInstance = this.getObjectDefaultValueInstance(objType);
                 }
-            } catch (InstantiationException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                return;
-            } catch (IllegalAccessException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                return;
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-                return;
-            }
-		}
+        }
 		Method[] methods = objInstance.getClass().getMethods();
 		for (Method method : methods) {
             String methodName = method.getName();
@@ -93,9 +90,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 				}
 				if (objInstance.getClass().getName().equals("java.lang.String")) {
                     return;
-					/*if (methodName.equals("isEmpty") || methodName.equals("getBytes")) {
-						continue;
-					}*/
 				}
 				try {
 					Class<?> type = method.getReturnType();
@@ -110,24 +104,13 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
                     String name = methodName.startsWith("get") ? methodName.replaceFirst("get", "") : methodName.replaceFirst("is", "");
                     Object defaultValue = method.invoke(newInstance, new Object[] {});
-                    /*final */AbstractBeanTreeNode node = new BeanObjectTreeNode(this, name, type, childObj, defaultValue);
-                    node.initChildren();
+                    /*final */BeanObjectTreeNode node = new BeanObjectTreeNode(this, name, type, childObj, defaultValue, methodName);
 
                     if (type.isArray()) {
-                        if(childObj != null) {
-                            int length = Array.getLength(childObj);
-                            for (int i = 0; i < length; i ++) {
-                                Object arrayElement = Array.get(childObj, i);
-                                String componentType = type.getComponentType().getSimpleName();
-                                Object arrayElementDefaultValue = this.getArrayElementDefaultValue(componentType.getClass());
-
-                                AbstractBeanTreeNode arrayChildNode = new BeanObjectTreeNode(node, componentType, arrayElement.getClass(), arrayElement, arrayElementDefaultValue);
-                                node.children.add(arrayChildNode);
-                                arrayChildNode.initChildren();
-                            }
-                        }
+                        node.initArrayElementChildren();
+                    } else {
+                        node.initChildren();
                     }
-
 
                     if (childObj == null || childObj.equals(defaultValue)) {
                     //It is important to set the parent to null unless we want null pointer exception later on
@@ -147,56 +130,97 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
 	}
 
-	public String toString() {
-		return name;
-	}
-	
-	public boolean isLeaf() {
-        return this.getChildCount() == 0;
-	}
+    public void initArrayElementChildren() {
+        Object userObj = this.userObject;
+        if(userObj != null) {
+            if (null == this.children) {
+                this.children = new Vector<AbstractBeanTreeNode>();
+            }
 
-	private static boolean isBean(Type type) {
-        // TODO 3 - might contain "int[]" or other strings that contain "int", "short" etc.
-        // Beans should have getters and setters methods, default constructor and implement Serializable
-		if (type.toString().contains("java.lang.String")) {
-			return false;
-		}
-		if (type.toString().contains("int")) {
-			return false;
-		}
-        if (type.toString().contains("boolean")) {
-            return false;
+            int length = Array.getLength(userObj);
+            for (int i = 0; i < length; i ++) {
+                Object arrayElement = Array.get(userObj, i);
+                Class<?> componentType = this.getObjType().getComponentType();
+                Object arrayElementDefaultValue = this.getObjectDefaultValueInstance(componentType);
+
+                AbstractBeanTreeNode arrayChildNode = new BeanObjectTreeNode(this, componentType.getSimpleName(), arrayElement.getClass(), arrayElement, arrayElementDefaultValue, null);
+
+                if (componentType.isArray()) {
+                    arrayChildNode.initArrayElementChildren();
+                } else {
+                    arrayChildNode.initChildren();
+                }
+                //arrayChildNode.initChildren();
+
+                this.children.add(arrayChildNode);
+            }
         }
-		if (type.toString().contains("float")) {
-			return false;
-		}
-		if (type.toString().contains("double")) {
-			return false;
-		}
-		if (type.toString().contains("long")) {
-			return false;
-		}
-		if (type.toString().contains("byte")) {
-			return false;
-		}
-		if (type.toString().contains("short")) {
-			return false;
-		}
-		if (type.toString().contains("char")) {
-			return false;
-		}
+    }
 
-		return true;
-	}
+    public AbstractBeanTreeNode addNewDefaultArrayElementChild() {
+        if (null == this.children) {
+            this.children = new Vector<AbstractBeanTreeNode>();
+        }
 
-    public boolean isTypePrimitiveOrString() {
+        AbstractBeanTreeNode arrayChildNode = null;
+        Class<?> componentType = this.getObjType().getComponentType();
+        Object arrayElement = null;
+        String nodeName = componentType.getSimpleName();
+        String methodName = null;
+
+        if(false == isTypePrimitiveOrString(componentType)) {
+            Object parentObj = this.userObject;
+            Method method = findGetMethodInParentByName(parentObj, nodeName);
+            if(method != null) {
+                try {
+                    arrayElement = method.invoke(parentObj, new Object[]{});
+                    methodName = method.getName();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                } catch (InvocationTargetException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+            }
+        }
+
+        if(arrayElement == null) {
+            arrayElement = this.getObjectDefaultValueInstance(componentType);
+        }
+
+        Object arrayElementDefaultValue = this.getObjectDefaultValueInstance(componentType);
+        arrayChildNode = new BeanObjectTreeNode(this, componentType.getSimpleName(), arrayElement.getClass(), arrayElement, arrayElementDefaultValue, methodName);
+        this.children.add(arrayChildNode);
+
+        if(false == componentType.isPrimitive()) {
+            arrayChildNode.initChildren();
+        }
+
+        return arrayChildNode;
+    }
+
+    private static Method findGetMethodInParentByName(Object parentObj, String nodeName) {
+        Method method = null;
+        try {
+            method = parentObj.getClass().getMethod("get"+nodeName, new Class[]{});
+        } catch (NoSuchMethodException e) {
+            try {
+                method = parentObj.getClass().getMethod("is"+nodeName, new Class[]{});
+            } catch (NoSuchMethodException e1) {
+                System.out.println("No getter method found for : " + nodeName);
+            }
+        }
+
+        return method;
+    }
+
+    public static boolean isTypePrimitiveOrString(Class<?> objType) {
         return (objType == String.class
                 || objType == Boolean.class
-                || isTypePrimitiveNumber()
+                || isObjTypePrimitiveNumber(objType)
                 || objType == Character.class);
     }
 
-    public boolean isTypePrimitiveNumber() {
+    public static boolean isObjTypePrimitiveNumber(Class<?> objType) {
         return(objType.isPrimitive()
                 || objType == Integer.class
                 || objType == Long.class
@@ -206,7 +230,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 || objType == Short.class);
     }
 
-    public Object getArrayElementDefaultValue(Class cls) {
+    public Object getObjectDefaultValueInstance(Class<?> cls) {
         if (cls == Boolean.TYPE) {
             return Boolean.FALSE;
         } else if (cls == Byte.TYPE) {
@@ -224,20 +248,84 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }  else if (cls == Character.TYPE) {
             return ((char) 0);
         }  else {
-            return null;
+            Object objInstance = null;
+            try {
+                if(cls.isArray()) {
+                    objInstance = Array.newInstance(cls.getComponentType(), 0);
+                } else {
+                    objInstance = cls.newInstance();
+                }
+                //objInstance = cls.newInstance();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InstantiationException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+            return objInstance;
         }
     }
 
-//	public AbstractBeanTreeNode getParent() {
-//		return parent;
-//	}
+
+    public static boolean isParentAnArray(AbstractBeanTreeNode childNode) {
+        if(null != childNode && childNode.getParent() != null) {
+            if(childNode.getParent() instanceof AbstractBeanTreeNode) {
+                AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) childNode.getParent();
+                return (parentNode.objType.isArray());
+            }
+        }
+
+        return false;
+    }
+
+
+    public String toString() {
+        return name;
+    }
+
+    public boolean isLeaf() {
+        return this.getChildCount() == 0;
+    }
+
+    private static boolean isBean(Type type) {
+        // TODO 3 - might contain "int[]" or other strings that contain "int", "short" etc.
+        // Beans should have getters and setters methods, default constructor and implement Serializable
+        if (type.toString().contains("java.lang.String")) {
+            return false;
+        }
+        if (type.toString().contains("int")) {
+            return false;
+        }
+        if (type.toString().contains("boolean")) {
+            return false;
+        }
+        if (type.toString().contains("float")) {
+            return false;
+        }
+        if (type.toString().contains("double")) {
+            return false;
+        }
+        if (type.toString().contains("long")) {
+            return false;
+        }
+        if (type.toString().contains("byte")) {
+            return false;
+        }
+        if (type.toString().contains("short")) {
+            return false;
+        }
+        if (type.toString().contains("char")) {
+            return false;
+        }
+
+        return true;
+    }
 	
 	public Object getName() {
 		return name;
 	}
 
-	public NodeType getType() {
-		return type;
+	public NodeType getNodeType() {
+		return nodeType;
 	}
 
 	public void getValidationErrors(ArrayList<SutValidationError> nodeErrors) {
