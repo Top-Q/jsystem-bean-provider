@@ -1,17 +1,16 @@
 package org.jsystemtest;
 
+import jsystem.framework.sut.SutValidationError;
+import org.apache.commons.lang3.ClassUtils;
+//import org.apache.commons.lang.ClassUtils;
+
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.MutableTreeNode;
 import java.lang.reflect.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
-
-import org.apache.commons.lang.ClassUtils;
-
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.MutableTreeNode;
-
-import jsystem.framework.sut.SutValidationError;
 
 public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
