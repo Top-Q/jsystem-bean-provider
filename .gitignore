@@ -18,3 +18,5 @@ jsystem.properties
 jsystem.properties.bu
 jsystem0.*
 
+# Intellij Files
+*.iml
