@@ -339,6 +339,43 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		return "";
 	}
 
+    public void setValue(Object value) {
+        Object parsedString = parseObjectFromString(value.toString());
+        if(parsedString != null) {
+            this.setUserObject(value);
+        }
+    }
+
+    private Object parseObjectFromString(String value) {
+        if(objType == String.class) {
+            return value;
+        }
+
+        try {
+            if (objType == Boolean.class) {
+                return ((value != null) && value.equalsIgnoreCase("true") ? true : null);
+            } else if (objType == Byte.class) {
+                return Byte.parseByte(value);
+            } else if (objType == Short.class) {
+                return Short.parseShort(value);
+            } else if (objType == Integer.class) {
+                return Integer.parseInt(value);
+            } else if (objType == Long.class) {
+                return Long.parseLong(value);
+            }  else if (objType == Float.class) {
+                return Float.parseFloat(value);
+            }  else if (objType == Double.class) {
+                return Double.parseDouble(value);
+            }  else if (objType == Character.class) {
+                return (value.length() == 1 ? value.charAt(0) : null);
+            }
+        } catch (NumberFormatException nfe) {
+            // TODO 3 - Highlight the parsing problem to user
+        }
+
+        return null;
+    }
+
 	public String getClassName() {
 		if (userObject != null) {
 			return userObject.getClass().getSimpleName();

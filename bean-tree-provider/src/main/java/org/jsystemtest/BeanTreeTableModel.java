@@ -115,6 +115,15 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         return false;
     }
 
+    public void setValueAt(Object value, Object node, int column) {
+        // TODO 4 - check validity
+        //System.out.println("Value changed in node " + node.toString() + " : " + value.toString());
+        if(node instanceof AbstractBeanTreeNode) {
+            AbstractBeanTreeNode beanNode = (AbstractBeanTreeNode)node;
+            beanNode.setValue(value);
+        }
+    }
+
     public void valueForPathChanged(TreePath path, Object newValue) {
         System.out.println("Value changed to: " + newValue + "\nIn: " + path.toString());
     }
