@@ -8,7 +8,12 @@ package org.jsystemtest.bean;
  * To change this template use File | Settings | File Templates.
  */
 public class Page {
+
+    public enum PageType { COVER, REGULAR }
+
     private int pageCount = 220;
+
+    private PageType type = PageType.COVER;
 
     public Page() {}
 
@@ -16,11 +21,20 @@ public class Page {
         this.pageCount = pageCount;
     }*/
 
+
     public int getPageCount() {
         return pageCount;
     }
 
     public void setPageCount(int pageCount) {
         this.pageCount = pageCount;
+    }
+
+    public PageType getType() {
+        return type;
+    }
+
+    public void setType(PageType type) {
+        this.type = type;
     }
 }

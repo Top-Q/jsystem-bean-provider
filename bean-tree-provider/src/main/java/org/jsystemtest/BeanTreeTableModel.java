@@ -11,6 +11,7 @@ import jsystem.treeui.suteditor.planner.FilterType;
 import jsystem.treeui.utilities.CellEditorModel;
 import jsystem.utils.beans.CellEditorType;
 
+import org.jdesktop.swingx.JXTable;
 import org.jdesktop.swingx.JXTreeTable;
 import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
@@ -65,8 +66,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
                 //return beanTreeNode.getValue();
                 Object userObj = beanTreeNode.getUserObject();
                 if(userObj != null) {
-                    Class<?> type = userObj.getClass();
-
+                    //Class<?> type = userObj.getClass();
                     //return type.isPrimitive() || type == String.class ? beanTreeNode.getValue() : "";
                     return AbstractBeanTreeNode.isTypePrimitiveOrString(beanTreeNode.objType) ? beanTreeNode.getValue() : "";
                 }
@@ -100,17 +100,21 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
          * rather than a check box.
          */
     /*public Class getColumnClass(int c) {
-        return getValueAt(0, c).getClass();
+        //return getValueAt(0, c).getClass();
     }*/
 
     public boolean isCellEditable(Object node, int col) {
         //Note that the data/cell address is constant,
         //no matter where the cell appears onscreen.
-        if (col == ColNames.CUR_VAL.ordinal()) {
-            if(node instanceof AbstractBeanTreeNode) {
-                return AbstractBeanTreeNode.isTypePrimitiveOrString(((AbstractBeanTreeNode) node).objType);
-            }
+        if(node instanceof AbstractBeanTreeNode) {
+            AbstractBeanTreeNode beanTreeNode = ((AbstractBeanTreeNode) node);
+            if (col == ColNames.CUR_VAL.ordinal()) {
+                return AbstractBeanTreeNode.isTypePrimitiveOrString((beanTreeNode).objType) || beanTreeNode.objType.isEnum();
+            } /*else if(col == ColNames.NAME.ordinal()) {
+                return (beanTreeNode).objType == Boolean.class;
+            }*/
         }
+
 
         return false;
     }
@@ -121,6 +125,11 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         if(node instanceof AbstractBeanTreeNode) {
             AbstractBeanTreeNode beanNode = (AbstractBeanTreeNode)node;
             beanNode.setValue(value);
+
+            // Update the row after the change - relevant especially for boolean values
+            AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
+            int nodeIndex = parent.getIndex(beanNode);
+            modelSupport.fireChildChanged(new TreePath(parent.getPath()), nodeIndex, node);
         }
     }
 
@@ -263,8 +272,9 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 	}
 
 	public void refresh() {
-		modelSupport.fireNewRoot();
-	}
+		//modelSupport.fireNewRoot();
+        System.out.println("Refresh: fireNewRoot()");
+    }
 
 	public void setChildToVisible(AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
 		int childIndex = -1;
@@ -299,16 +309,6 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         System.out.println(obj.toString());
         //if(objCellEditorType.INT
 		return null;
-        /*String columnName = table.getColumnName(column);
-        if(columnName.toLowerCase().equals("current value")){
-            return CellEditorType.STRING;
-        } else {
-
-            return super.getEditorType(table, row,
-                    column);
-
-            return null;
-        }*/
 	}
 
 	public String[] getOptions(JTable table, int row, int column) {
@@ -325,10 +325,6 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 				.getLastPathComponent();
 
         return node.getObjType();
-		/*
-		 * if (node.getNodeType() != null) { return node.getNodeType(); }
-		 */
-		//return null;
 	}
 
 	public boolean isValidData(JTable table, int row, int column, Object enteredValue) {

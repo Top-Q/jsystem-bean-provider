@@ -20,7 +20,8 @@ public class Main {
         //b0.setPage(new Page(4));
         Page pageB0 = new Page();
         pageB0.setPageCount(4);
-        b0.setPages(new Page[] { pageB0 } );
+        pageB0.setType(Page.PageType.REGULAR);
+        b0.setPages(new Page[]{pageB0});
         b0.setGreetings("Thank you!");
         b0.setEditions(new int[] {1, 3, 5});
         b0.setPublication("Boston");

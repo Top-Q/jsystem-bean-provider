@@ -72,12 +72,11 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
         Object objInstance = userObject;
         if (null == userObject) {
-            //try {
-                if(objType.isArray()) {
-                    objInstance = Array.newInstance(objType, 0);
-                } else {
-                    objInstance = this.getObjectDefaultValueInstance(objType);
-                }
+            if(objType.isArray()) {
+                objInstance = Array.newInstance(objType, 0);
+            } else {
+                objInstance = this.getObjectDefaultValueInstance(objType);
+            }
         }
 		Method[] methods = objInstance.getClass().getMethods();
 		for (Method method : methods) {
@@ -107,8 +106,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
                     if (type.isArray()) {
                         node.initArrayElementChildren();
-                    } else {
+                    } else if (false == type.isEnum()) {
                         node.initChildren();
+                    } else {
+                        System.out.println(childObj);
                     }
 
                     if (childObj == null || childObj.equals(defaultValue)) {
@@ -149,7 +150,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 } else {
                     arrayChildNode.initChildren();
                 }
-                //arrayChildNode.initChildren();
 
                 this.children.add(arrayChildNode);
             }
@@ -284,8 +284,117 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     public boolean isLeaf() {
         return this.getChildCount() == 0;
     }
+	
+	public Object getName() {
+		return name;
+	}
 
-    private static boolean isBean(Type type) {
+	public NodeType getNodeType() {
+		return nodeType;
+	}
+
+	public void getValidationErrors(ArrayList<SutValidationError> nodeErrors) {
+		// TODO Auto-generated method stub
+
+	}
+
+	public Object getValue() {
+		if (userObject != null) {
+			return userObject.toString();
+		}
+		return "";
+	}
+
+    public void setValue(Object value) {
+        Object parsedString = parseObjectFromString(value.toString());
+        if(parsedString != null) {
+            this.setUserObject(parsedString);
+        }
+    }
+
+    public Object parseObjectFromString(String value) {
+        if(objType == String.class) {
+            return value;
+        }
+
+        try {
+            if (objType == Boolean.class) {
+                if(value != null) {
+                    if(value.equalsIgnoreCase("true")) {
+                        return true;
+                    } else if(value.equalsIgnoreCase("false")) {
+                        return false;
+                    }
+                    //return (value.equalsIgnoreCase("true") ? true : (value.equalsIgnoreCase("false") ? false : null));
+                }
+            } else if (objType.isEnum()) {
+                //return objType.getDeclaredField(value);
+                return Enum.valueOf((Class<Enum>)objType, value);
+            } else if (objType == Byte.class || objType == byte.class) {
+                return Byte.parseByte(value);
+            } else if (objType == Short.class || objType == short.class) {
+                return Short.parseShort(value);
+            } else if (objType == Integer.class || objType == int.class) {
+                return Integer.parseInt(value);
+            } else if (objType == Long.class || objType == long.class) {
+                return Long.parseLong(value);
+            }  else if (objType == Float.class || objType == float.class) {
+                return Float.parseFloat(value);
+            }  else if (objType == Double.class || objType == double.class) {
+                return Double.parseDouble(value);
+            }  else if (objType == Character.class) {
+                return (value.length() == 1 ? value.charAt(0) : null);
+            } else {
+                System.out.println("Unsupported object type to parse from String : " + getObjType().getName());
+            }
+        } catch (NumberFormatException nfe) {
+            // TODO 3 - Highlight the parsing problem to user
+        }
+
+        return null;
+    }
+
+    private void setValueUsingSetMethod(Object value) {
+        // TODO 3 - beware of setting the root node (no parent) - possible??
+        AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode)this.parent;
+        Object objInstance = parentNode.getUserObject();
+
+        // Checking also for "is" (not only for "get")
+        String setMethodNameInParent = "set" + (getGetMethodInParent().startsWith("get") ? getGetMethodInParent().substring(3) : getGetMethodInParent().substring(2));
+        try {
+            Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{userObject.getClass()});
+            if(objType.isEnum()) {
+                setMethodInParent.invoke(objInstance, new Object[] {Enum.valueOf((Class<Enum>) userObject.getClass(), value.toString())});
+            } else {
+                setMethodInParent.invoke(objInstance, new Object[] { value });
+            }
+        } catch (NoSuchMethodException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (InvocationTargetException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+
+    }
+
+	public String getClassName() {
+		if (userObject != null) {
+			return userObject.getClass().getSimpleName();
+		}
+		return "";
+	}
+
+	public String getArraySuperClassName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Vector<AbstractBeanTreeNode> getHiddenChildren() {
+		return hiddenChildren;
+	}
+
+    /*private static boolean isBean(Type type) {
         // TODO 3 - might contain "int[]" or other strings that contain "int", "short" etc.
         // Beans should have getters and setters methods, default constructor and implement Serializable
         if (type.toString().contains("java.lang.String")) {
@@ -317,80 +426,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }
 
         return true;
-    }
-	
-	public Object getName() {
-		return name;
-	}
-
-	public NodeType getNodeType() {
-		return nodeType;
-	}
-
-	public void getValidationErrors(ArrayList<SutValidationError> nodeErrors) {
-		// TODO Auto-generated method stub
-
-	}
-
-	public Object getValue() {
-		if (userObject != null) {
-			return userObject.toString();
-		}
-		return "";
-	}
-
-    public void setValue(Object value) {
-        Object parsedString = parseObjectFromString(value.toString());
-        if(parsedString != null) {
-            this.setUserObject(value);
-        }
-    }
-
-    private Object parseObjectFromString(String value) {
-        if(objType == String.class) {
-            return value;
-        }
-
-        try {
-            if (objType == Boolean.class) {
-                return ((value != null) && value.equalsIgnoreCase("true") ? true : null);
-            } else if (objType == Byte.class) {
-                return Byte.parseByte(value);
-            } else if (objType == Short.class) {
-                return Short.parseShort(value);
-            } else if (objType == Integer.class) {
-                return Integer.parseInt(value);
-            } else if (objType == Long.class) {
-                return Long.parseLong(value);
-            }  else if (objType == Float.class) {
-                return Float.parseFloat(value);
-            }  else if (objType == Double.class) {
-                return Double.parseDouble(value);
-            }  else if (objType == Character.class) {
-                return (value.length() == 1 ? value.charAt(0) : null);
-            }
-        } catch (NumberFormatException nfe) {
-            // TODO 3 - Highlight the parsing problem to user
-        }
-
-        return null;
-    }
-
-	public String getClassName() {
-		if (userObject != null) {
-			return userObject.getClass().getSimpleName();
-		}
-		return "";
-	}
-
-	public String getArraySuperClassName() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	public Vector<AbstractBeanTreeNode> getHiddenChildren() {
-		return hiddenChildren;
-	}
+    }*/
 
 
     private <T> T instantiate(Class<T> cls, Map<String, ? extends Object> args) throws Exception

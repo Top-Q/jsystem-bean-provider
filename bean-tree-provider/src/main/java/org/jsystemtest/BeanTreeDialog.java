@@ -33,20 +33,7 @@ import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.swing.Action;
-import javax.swing.DefaultComboBoxModel;
-import javax.swing.JButton;
-import javax.swing.JComboBox;
-import javax.swing.JComponent;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JSeparator;
-import javax.swing.JTextField;
-import javax.swing.JToolBar;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.event.TreeSelectionEvent;
@@ -71,6 +58,8 @@ import jsystem.utils.SwingUtils;
 import org.jdesktop.swingx.JXTable;
 import org.jdesktop.swingx.JXTreeTable;
 import org.w3c.dom.Document;
+
+import static org.jsystemtest.BeanValueTableRenderer.*;
 
 /**
  * SUT planner dialog. Handles all GUI related operations.
@@ -125,7 +114,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 	private CancelAction cancelAction;
 	private CollapseAction collapseAction;
 	private ExpandAction expandAction;
-	private List<AddChildAction> addChildActionList;
+	private List<ShowChildAction> addChildActionList;
 
 	static {
 		try {
@@ -310,9 +299,9 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 			selectedNode = (AbstractBeanTreeNode) clickedPath.getLastPathComponent();
 			Vector<AbstractBeanTreeNode> hiddenChildren = selectedNode.getHiddenChildren();
 			if (hiddenChildren != null && hiddenChildren.size() > 0) {
-				addChildActionList = new ArrayList<AddChildAction>();
+				addChildActionList = new ArrayList<ShowChildAction>();
 				for (AbstractBeanTreeNode child : hiddenChildren) {
-					AddChildAction action = new AddChildAction(this, selectedNode, child);
+					ShowChildAction action = new ShowChildAction(this, selectedNode, child);
 					addChildActionList.add(action);
 				}
 			}
@@ -344,7 +333,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
         popup.add(hideAction);
 		popup.add(new JSeparator());
 		if (addChildActionList != null && addChildActionList.size() > 0) {
-			for (AddChildAction action : addChildActionList) {
+			for (ShowChildAction action : addChildActionList) {
 				popup.add(action);
 			}
 			addChildActionList.clear();
@@ -416,7 +405,8 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		filterCombo.setSelectedItem("");
 
 		treeTableModel.setHasChanged(false);
-		treeTable = new JXTreeTable(treeTableModel) {
+        treeTable = new JXTreeTable(treeTableModel);
+		/*treeTable = new JXTreeTable(treeTableModel) {
 			private static final long serialVersionUID = -8037560184152941754L;
 
 			public Component prepareRenderer(TableCellRenderer renderer, int row, int col) {
@@ -466,19 +456,30 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 				return comp;
 			}
 
-		};
+		};*/
 		treeTable.setRootVisible(true);
-		GenericCellEditor gce = new GenericCellEditor(treeTableModel);
+		//GenericCellEditor gce = new GenericCellEditor(treeTableModel);
 		/*for (int i = 0; i < treeTable.getColumnCount(); i++) {
 			treeTable.getColumnModel().getColumn(i).setCellEditor(gce);
 		} */
-        treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(new JXTable.NumberEditor());
-        //treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(new JXTable.NumberEditor());
+        //System.out.println(treeTable.getColumnModel().getColumnCount());
+        ComplexCellEditor cce = new ComplexCellEditor(treeTableModel);
+        treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(cce);
+
+        TableColumn currValueColumn = treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
+
+        currValueColumn.setCellRenderer(new BeanValueTableRenderer());
+        treeTable.setDefaultRenderer(Boolean.class, new BeanValueTableRenderer());
 
 		treeTable.getTreeSelectionModel().addTreeSelectionListener(this);
 
 		treeTable.setTreeCellRenderer(new BeanTreeRenderer());
-        //treeTable.setTreeCellRenderer(new CheckBoxRenderer());
+
+        currValueColumn.setCellRenderer(new BeanValueTableRenderer());
+        TableCellRenderer tableCellRenderer = treeTable.getColumn(1).getCellRenderer();
+        System.out.println(tableCellRenderer == null ? "No Cell Renderer" : tableCellRenderer.toString());
+
+
 		treeTable.addMouseListener(this);
 
 		treeTable.setSelectionBackground(Color.LIGHT_GRAY);
@@ -488,8 +489,6 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		JTableHeader treeTableHeader = treeTable.getTableHeader();
 		treeTableHeader.setBackground(new Color(0xe1, 0xe4, 0xe6));
 		treeTableHeader.setFont(new Font("sansserif", Font.BOLD, 11));
-
-
 
 
 		add(SwingUtils.getJScrollPaneWithWaterMark(
@@ -695,13 +694,13 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 	}
 }
 
-class AddChildAction extends IgnisAction {
+class ShowChildAction extends IgnisAction {
 	private static final long serialVersionUID = 1L;
 	private BeanTreeDialog dialog;
 	private AbstractBeanTreeNode parent, child;
 
-	AddChildAction(BeanTreeDialog dialog, AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
-		String name = "Add " + child.getName();
+	ShowChildAction(BeanTreeDialog dialog, AbstractBeanTreeNode parent, AbstractBeanTreeNode child) {
+		String name = "Show " + child.getName();
 		putValue(Action.SHORT_DESCRIPTION, name);
 		putValue(Action.NAME, name);
 		putValue(Action.ACTION_COMMAND_KEY, name);
