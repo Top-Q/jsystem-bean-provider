@@ -1,6 +1,7 @@
 package org.jsystemtest;
 
 import jsystem.framework.sut.SutValidationError;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
 //import org.apache.commons.lang.ClassUtils;
 
@@ -41,6 +42,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
     public void setDefaultValue(Object defaultValue) {
         this.defaultValue = defaultValue;
+    }
+
+    public AbstractBeanTreeNode getBeanParent() {
+        return (AbstractBeanTreeNode) this.getParent();
     }
 
     public String getGetMethodInParent() {
@@ -143,7 +148,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 Class<?> componentType = this.getObjType().getComponentType();
                 Object arrayElementDefaultValue = this.getObjectDefaultValueInstance(componentType);
 
-                AbstractBeanTreeNode arrayChildNode = new BeanObjectTreeNode(this, componentType.getSimpleName(), arrayElement.getClass(), arrayElement, arrayElementDefaultValue, null);
+                AbstractBeanTreeNode arrayChildNode = new BeanObjectTreeNode(this, componentType.getSimpleName(), componentType/*arrayElement.getClass()*/, arrayElement, arrayElementDefaultValue, null);
 
                 if (componentType.isArray()) {
                     arrayChildNode.initArrayElementChildren();
@@ -167,7 +172,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         String nodeName = componentType.getSimpleName();
         String methodName = null;
 
-        if(false == isTypePrimitiveOrString(componentType)) {
+        if(false == isTypeNumberOrString(componentType)) {
             Object parentObj = this.userObject;
             Method method = findGetMethodInParentByName(parentObj, nodeName);
             if(method != null) {
@@ -212,16 +217,19 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return method;
     }
 
-    public static boolean isTypePrimitiveOrString(Class<?> objType) {
+    public static boolean isTypeNumberOrString(Class<?> objType) {
         return (objType == String.class
                 || objType == Boolean.class
-                || isObjTypePrimitiveNumber(objType)
+                || isObjTypeNumber(objType)
                 || objType == Character.class);
     }
 
-    public static boolean isObjTypePrimitiveNumber(Class<?> objType) {
-        return(objType.isPrimitive()
-                || objType == Integer.class
+    public static boolean isObjTypeNumber(Class<?> objType) {
+        return(objType.isPrimitive() || isObjTypeObjectNumber(objType));
+    }
+
+    public static boolean isObjTypeObjectNumber(Class<?> objType) {
+        return (objType == Integer.class
                 || objType == Long.class
                 || objType == Float.class
                 || objType == Double.class
@@ -252,12 +260,20 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 if(cls.isArray()) {
                     objInstance = Array.newInstance(cls.getComponentType(), 0);
                 } else {
-                    objInstance = cls.newInstance();
+                    if(isObjTypeObjectNumber(cls)) {
+                        objInstance = cls.getConstructor(String.class).newInstance("0");
+                    } else {
+                        objInstance = cls.newInstance();
+                    }
                 }
                 //objInstance = cls.newInstance();
             } catch (IllegalAccessException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             } catch (InstantiationException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InvocationTargetException e) {
                 e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
             }
             return objInstance;
@@ -305,11 +321,73 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		return "";
 	}
 
-    public void setValue(Object value) {
+    public void setValue(Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         Object parsedString = parseObjectFromString(value.toString());
         if(parsedString != null) {
+            this.setValueUsingSetMethod(parsedString);
             this.setUserObject(parsedString);
         }
+    }
+
+    /**
+     * Switching the positions of 2 array elements in the original user-object.
+     * @param parentNode - The array itself
+     * @param nodeIndex1 - The 1st array's-value index to be switched
+     * @param nodeIndex2 - The 2nd array's-value index to be switched
+     */
+    public void substitueArrayElementsOrder(AbstractBeanTreeNode parentNode,  int nodeIndex1, int nodeIndex2) {
+        Object arrayObj = parentNode.getUserObject();
+        Object arrayElement1 = Array.get(arrayObj, nodeIndex1);
+        Object arrayElement2 = Array.get(arrayObj, nodeIndex2);
+
+        Array.set(arrayObj, nodeIndex1, arrayElement2);
+        Array.set(arrayObj, nodeIndex2, arrayElement1);
+    }
+
+
+    public void insertNewArrayElement() {
+         // TODO 4 - Support add element
+    }
+
+
+    /**
+     * Removing an array-element in the original user-object (actually replacing with a new array)
+     * @param parentNode - The array itself
+     * @param nodeIndex - Index of the element (to be removed) in the array
+     * @throws NoSuchMethodException
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     */
+    public void removeArrayElement(AbstractBeanTreeNode parentNode, int nodeIndex) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        Object arrayObj = parentNode.getUserObject();
+        int arrayLength = Array.getLength(arrayObj);
+        Class componentType = parentNode.userObject.getClass().getComponentType();
+        Object newArrayObj = Array.newInstance(componentType, arrayLength - 1);
+
+        int i = 0;
+        for (; i < nodeIndex; i++) {
+            Object arrayElement = Array.get(arrayObj, i);
+            Array.set(newArrayObj, i, arrayElement);
+        }
+
+        i = nodeIndex + 1; // Skipping the removed element
+        for (; i < arrayLength; i++) {
+            Object arrayElement = Array.get(arrayObj, i);
+            Array.set(newArrayObj, (i-1), arrayElement);
+        }
+
+        // If grandparent is also an array : set its relevant element with the new array
+        AbstractBeanTreeNode grandParentNode = parentNode.getBeanParent();
+        if(null != grandParentNode) {
+            if(grandParentNode.objType.isArray()) {
+                int parentIndexInGrandParent = grandParentNode.getIndex(parentNode);
+                Array.set(grandParentNode.userObject, parentIndexInGrandParent, newArrayObj);
+            } else {
+                parentNode.setValueUsingSetMethod(newArrayObj);
+            }
+        }
+
+        parentNode.setUserObject(newArrayObj);
     }
 
     public Object parseObjectFromString(String value) {
@@ -354,29 +432,82 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return null;
     }
 
-    private void setValueUsingSetMethod(Object value) {
+    private void setValueUsingSetMethod(Object value) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         // TODO 3 - beware of setting the root node (no parent) - possible??
         AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode)this.parent;
         Object objInstance = parentNode.getUserObject();
 
-        // Checking also for "is" (not only for "get")
-        String setMethodNameInParent = "set" + (getGetMethodInParent().startsWith("get") ? getGetMethodInParent().substring(3) : getGetMethodInParent().substring(2));
-        try {
+        if(parentNode.objType.isArray()) {
+            int indexInParent = parentNode.getIndex(this);
+            Array.set(parentNode.userObject, indexInParent, value);
+        } else {
+            // Checking also for "is" (not only for "get")
+            String setMethodNameInParent = "set" + (getGetMethodInParent().startsWith("get") ? getGetMethodInParent().substring(3) : getGetMethodInParent().substring(2));
             Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{userObject.getClass()});
             if(objType.isEnum()) {
                 setMethodInParent.invoke(objInstance, new Object[] {Enum.valueOf((Class<Enum>) userObject.getClass(), value.toString())});
             } else {
-                setMethodInParent.invoke(objInstance, new Object[] { value });
-            }
-        } catch (NoSuchMethodException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (InvocationTargetException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        }
+                Object valueToSet = value;
+                if(value.getClass().isArray()) {
+                    Class valueComponentType = value.getClass().getComponentType();
+                    Class setMethodComponentType = setMethodInParent.getParameterTypes()[0].getComponentType();
+                    if(setMethodComponentType.isPrimitive() && false == valueComponentType/*userObject.getClass()*/.isPrimitive()) {
+                        valueToSet = this.convertObjectArrayToPrimitiveArray(value, setMethodComponentType);
+                    } else if(false == setMethodComponentType.isPrimitive() && valueComponentType/*userObject.getClass()*/.isPrimitive()) {
 
+                        valueToSet = this.convertPrimitiveArrayToObjectArray(value, setMethodComponentType);
+                    }
+                }
+                this.userObject = valueToSet;
+                setMethodInParent.invoke(objInstance, new Object[] { valueToSet });
+            }
+        }
     }
+
+
+    private Object convertObjectArrayToPrimitiveArray(Object objArray, Class destComponentType) {
+        if (destComponentType == byte.class) {
+            return ArrayUtils.toPrimitive(((Byte[]) (objArray)));
+        } else if (destComponentType == short.class) {
+            return ArrayUtils.toPrimitive(((Short[]) (objArray)));
+        } else if (destComponentType == int.class) {
+            return ArrayUtils.toPrimitive(((Integer[]) (objArray)));
+        } else if (destComponentType == long.class) {
+            return ArrayUtils.toPrimitive(((Long[]) (objArray)));
+        }  else if (destComponentType == float.class) {
+            return ArrayUtils.toPrimitive(((Float[])(objArray)));
+        }  else if (destComponentType == double.class) {
+            return ArrayUtils.toPrimitive(((Double[])(objArray)));
+        }  else if (destComponentType == char.class) {
+            return ArrayUtils.toPrimitive(((Character[])(objArray)));
+        } else {
+            System.out.println("Unsupported object array type to covert to : " + destComponentType.getName());
+            return objArray;
+        }
+    }
+
+
+    private Object convertPrimitiveArrayToObjectArray(Object primitiveArray, Class destComponentType) {
+        if (destComponentType == Byte.class) {
+            return ArrayUtils.toObject(((byte[])(primitiveArray)));
+        } else if (destComponentType == Short.class) {
+            return ArrayUtils.toObject(((short[]) (primitiveArray)));
+        } else if (destComponentType == Integer.class) {
+            return ArrayUtils.toObject(((int[]) (primitiveArray)));
+        } else if (destComponentType == Long.class) {
+            return ArrayUtils.toObject(((long[]) (primitiveArray)));
+        }  else if (destComponentType == Float.class) {
+            return ArrayUtils.toObject(((float[]) (primitiveArray)));
+        }  else if (destComponentType == Double.class) {
+            return ArrayUtils.toObject(((double[]) (primitiveArray)));
+        }  else if (destComponentType == Character.class) {
+            return ArrayUtils.toObject(((char[])(primitiveArray)));
+        } else {
+            System.out.println("Unsupported primitive array type to covert to : " + destComponentType.getName());
+            return primitiveArray;
+        }
+    }
+
 
 	public String getClassName() {
 		if (userObject != null) {

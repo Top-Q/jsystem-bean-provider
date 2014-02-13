@@ -87,7 +87,7 @@ public class BeanValueTableRenderer implements TableCellRenderer {
                         //component = new JLabel(node.getUserObject().toString());
 
                     } else {
-                        if(AbstractBeanTreeNode.isTypePrimitiveOrString(node.getObjType())) {
+                        if(AbstractBeanTreeNode.isTypeNumberOrString(node.getObjType())) {
                             component = new JLabel(node.getValue().toString());
                         }
                     }

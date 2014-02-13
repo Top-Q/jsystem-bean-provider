@@ -9,7 +9,7 @@ public class Book {
     private String publication = "Harvard";
 	private Page[] pages;
     private String[] glossary;
-    private int[][][] wordLocations;
+    private Integer[][][] wordLocations;
 
     private int year;
     private int[] editions;
@@ -96,11 +96,11 @@ public class Book {
         this.glossary = glossary;
     }
 
-    public int[][][] getWordLocations() {
+    public Integer[][][] getWordLocations() {
         return wordLocations;
     }
 
-    public void setWordLocations(int[][][] wordLocations) {
+    public void setWordLocations(Integer[][][] wordLocations) {
         this.wordLocations = wordLocations;
     }
 }

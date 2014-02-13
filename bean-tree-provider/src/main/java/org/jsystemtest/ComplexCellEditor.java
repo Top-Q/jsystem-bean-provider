@@ -1,21 +1,12 @@
 package org.jsystemtest;
 
-import jsystem.framework.common.CommonResources;
-import jsystem.framework.scenario.Parameter;
-import jsystem.framework.scenario.ParameterProvider;
-import jsystem.runner.ErrorLevel;
-import jsystem.treeui.error.ErrorPanel;
-import jsystem.treeui.params.*;
 import jsystem.treeui.utilities.CellEditorModel;
-import jsystem.utils.StringUtils;
 import jsystem.utils.beans.CellEditorType;
 import org.jdesktop.swingx.JXTreeTable;
 
 import javax.swing.*;
 import javax.swing.table.TableCellEditor;
 import java.awt.*;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
 
 /**
  * Created with IntelliJ IDEA.
@@ -70,7 +61,7 @@ public class ComplexCellEditor extends AbstractCellEditor implements TableCellEd
                             comboBox.setSelectedItem(node.getUserObject().toString());
                             component = comboBox;
                         } else {
-                            if(AbstractBeanTreeNode.isTypePrimitiveOrString(node.getObjType())) {
+                            if(AbstractBeanTreeNode.isTypeNumberOrString(node.getObjType())) {
                                 String content = "";
                                 if (value != null) {
                                     content = value.toString();

@@ -1001,7 +1001,7 @@ class RemoveAction extends IgnisAction {
 	@Override
 	public void actionPerformed(ActionEvent e) {
 		try {
-			dialog.treeTableModel.removeArrayChildNode(dialog.selectedNode, true);
+			dialog.treeTableModel.removeArrayChildNode(dialog.selectedNode);
 //            dialog.treeTableModel.setChildToHidden(dialog.selectedNode);
 		} catch (Exception e1) {
 			BeanTreeDialog.log.log(Level.WARNING, "Fail to remove array element", e1);

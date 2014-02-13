@@ -4,11 +4,6 @@
 package org.jsystemtest;
 
 import java.awt.Component;
-import java.lang.reflect.Array;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 import javax.swing.*;
 import javax.swing.tree.TreeCellRenderer;
@@ -67,7 +62,7 @@ public class BeanTreeRenderer implements TreeCellRenderer {
                     label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_CLEAR));
                 } else if(node.getObjType() == String.class) {
 				    label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_COMMANT));
-                } else if( AbstractBeanTreeNode.isObjTypePrimitiveNumber(node.objType)) {
+                } else if( AbstractBeanTreeNode.isObjTypeNumber(node.objType)) {
                     label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_DEVICE));
                 } else if(node.getObjType().isEnum()) {
                     label.setIcon(ImageCenter.getInstance().getImage(ImageCenter.ICON_TEST));

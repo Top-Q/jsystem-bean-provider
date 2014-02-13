@@ -31,7 +31,7 @@ public class Main {
 		b1.setAuthor("Some author");
         b1.setPublication("Harvard");
         b1.setGlossary(new String[] {"Recognition", "Prettify"});
-        b1.setWordLocations(new int[][][] { {{90, 88}}, {{11, 22}, {33, 66}}});
+        b1.setWordLocations(new Integer[][][] { {{90, 88}}, {{11, 22}, {33, 66}}});
 		//b1.setPages(4);
         //b1.setPage(new Page(6));
 

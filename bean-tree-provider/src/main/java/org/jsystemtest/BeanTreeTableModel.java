@@ -1,5 +1,6 @@
 package org.jsystemtest;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 import javax.swing.JTable;
@@ -11,7 +12,6 @@ import jsystem.treeui.suteditor.planner.FilterType;
 import jsystem.treeui.utilities.CellEditorModel;
 import jsystem.utils.beans.CellEditorType;
 
-import org.jdesktop.swingx.JXTable;
 import org.jdesktop.swingx.JXTreeTable;
 import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 
@@ -68,7 +68,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
                 if(userObj != null) {
                     //Class<?> type = userObj.getClass();
                     //return type.isPrimitive() || type == String.class ? beanTreeNode.getValue() : "";
-                    return AbstractBeanTreeNode.isTypePrimitiveOrString(beanTreeNode.objType) ? beanTreeNode.getValue() : "";
+                    return AbstractBeanTreeNode.isTypeNumberOrString(beanTreeNode.objType) ? beanTreeNode.getValue() : "";
                 }
 
 			case 2: // 'Default value' column
@@ -109,7 +109,7 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         if(node instanceof AbstractBeanTreeNode) {
             AbstractBeanTreeNode beanTreeNode = ((AbstractBeanTreeNode) node);
             if (col == ColNames.CUR_VAL.ordinal()) {
-                return AbstractBeanTreeNode.isTypePrimitiveOrString((beanTreeNode).objType) || beanTreeNode.objType.isEnum();
+                return AbstractBeanTreeNode.isTypeNumberOrString((beanTreeNode).objType) || beanTreeNode.objType.isEnum();
             } /*else if(col == ColNames.NAME.ordinal()) {
                 return (beanTreeNode).objType == Boolean.class;
             }*/
@@ -124,12 +124,23 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         //System.out.println("Value changed in node " + node.toString() + " : " + value.toString());
         if(node instanceof AbstractBeanTreeNode) {
             AbstractBeanTreeNode beanNode = (AbstractBeanTreeNode)node;
-            beanNode.setValue(value);
+            try {
+                beanNode.setValue(value);
 
-            // Update the row after the change - relevant especially for boolean values
-            AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
-            int nodeIndex = parent.getIndex(beanNode);
-            modelSupport.fireChildChanged(new TreePath(parent.getPath()), nodeIndex, node);
+                // Update the row after the change - relevant especially for boolean values
+                AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
+                int nodeIndex = parent.getIndex(beanNode);
+                modelSupport.fireChildChanged(new TreePath(parent.getPath()), nodeIndex, node);
+            } catch (IllegalAccessException e) {
+                // TODO 3 - React accordingly
+                System.err.println(e.getMessage());
+            } catch (InvocationTargetException e) {
+                // TODO 3 - React accordingly
+                System.err.println(e.getMessage());
+            } catch (NoSuchMethodException e) {
+                // TODO 3 - React accordingly
+                System.err.println("Missing Set Method : " + e.getMessage());
+            }
         }
     }
 
@@ -179,16 +190,6 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 		// TODO Auto-generated method stub
 
 	}
-
-
-    public void removeArrayChildNode(AbstractBeanTreeNode node, boolean b) {
-        AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(node.getParent()));
-        int nodeIndex = parent.getIndex(node);
-
-        parent.remove(node);
-        node.setParent(null);
-        modelSupport.fireChildRemoved(new TreePath(parent.getPath()), nodeIndex, node);
-    }
 
 	public void setChildToHidden(AbstractBeanTreeNode node) {
         AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(node.getParent()));
@@ -244,6 +245,9 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         modelSupport.fireChildRemoved(parentPath, selectedNodeIndex, selectedNode);
         parent.insert(selectedNode, switchNodeIndex);
         modelSupport.fireChildAdded(parentPath, switchNodeIndex, selectedNode);
+
+        // Also update the original user-object
+        selectedNode.substitueArrayElementsOrder(parent, selectedNodeIndex, switchNodeIndex);
     }
 
     public void addArrayChildNode(AbstractBeanTreeNode parent) {
@@ -251,6 +255,29 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         if(null != child) {
             TreePath parentPath = new TreePath(parent.getPath());
             modelSupport.fireChildAdded(parentPath, parent.getChildCount() - 1, child);
+        }
+    }
+
+    public void removeArrayChildNode(AbstractBeanTreeNode node) {
+        AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(node.getParent()));
+        int nodeIndex = parent.getIndex(node);
+
+        try {
+            // First update the original user-object
+            node.removeArrayElement(parent, nodeIndex);
+
+            parent.remove(node);
+            node.setParent(null);
+            modelSupport.fireChildRemoved(new TreePath(parent.getPath()), nodeIndex, node);
+        } catch (IllegalAccessException e) {
+            // TODO 3 - React accordingly
+            System.err.println(e.getMessage());
+        } catch (InvocationTargetException e) {
+            // TODO 3 - React accordingly
+            System.err.println(e.getMessage());
+        } catch (NoSuchMethodException e) {
+            // TODO 3 - React accordingly
+            System.err.println("Missing Set Method : " + e.getMessage());
         }
     }
 
