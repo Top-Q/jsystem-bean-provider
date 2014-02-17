@@ -138,8 +138,12 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 	// private JMenuItem popupRemoveSystemObject;
 	// private JMenuItem popupRemoveProperty;
 
+	public BeanTreeDialog(JFrame parent, String title){
+		super(parent);
+	}
+	
 	public BeanTreeDialog(String title) {
-		super(TestRunnerFrame.guiMainFrame);
+		this(TestRunnerFrame.guiMainFrame,title);
 		setTitle(title);
 		for (String current : BeanTreeTableModel.cNames) {
 			map.put(current, this.width / BeanTreeTableModel.cNames.length - 5);
@@ -150,7 +154,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		setPreferredSize(new Dimension(width, height));
 		setLocation(x, y);
 	}
-
+	
 	private void handleLoadWindowProperties() {
 		try {
 			Object widthObject = properties.getProperty(getWidthKey());
