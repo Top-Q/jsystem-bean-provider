@@ -102,7 +102,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                     Object newInstance = objInstance.getClass().newInstance();
                     //Object newInstance = objInstance != null ? objInstance.getClass().newInstance() : Class.forName(this.objType.getCanonicalName()).newInstance();
 					//TODO : Add factory
-                    // TODO 3 - We need to make sure that methods that start with "is" are not named like: "isolateFromList" or "issueToLog"
+                    // TODO 3 - We need to make sure that methods that start with "is" are NOT named like: "isolateFromList" or "issueToLog"
                     // TODO 3 - Handle Arrays & Lists
 
                     String name = methodName.startsWith("get") ? methodName.replaceFirst("get", "") : methodName.replaceFirst("is", "");
@@ -161,7 +161,11 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }
     }
 
-    public AbstractBeanTreeNode addNewDefaultArrayElementChild() {
+    /**
+     *
+     * @return
+     */
+    public AbstractBeanTreeNode generateNewDefaultArrayElementNode() {
         if (null == this.children) {
             this.children = new Vector<AbstractBeanTreeNode>();
         }
@@ -193,7 +197,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
         Object arrayElementDefaultValue = this.getObjectDefaultValueInstance(componentType);
         arrayChildNode = new BeanObjectTreeNode(this, componentType.getSimpleName(), arrayElement.getClass(), arrayElement, arrayElementDefaultValue, methodName);
-        this.children.add(arrayChildNode);
 
         if(false == componentType.isPrimitive()) {
             arrayChildNode.initChildren();
@@ -238,21 +241,21 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     }
 
     public Object getObjectDefaultValueInstance(Class<?> cls) {
-        if (cls == Boolean.TYPE) {
+        if (cls == Boolean.TYPE || cls == boolean.class || cls == Boolean.class) {
             return Boolean.FALSE;
-        } else if (cls == Byte.TYPE) {
+        } else if (cls == Byte.TYPE || cls == byte.class || cls == Byte.class) {
             return (byte) 0;
-        } else if (cls == Short.TYPE) {
+        } else if (cls == Short.TYPE || cls == short.class || cls == Short.class) {
             return (short) 0;
-        } else if (cls == Integer.TYPE) {
+        } else if (cls == Integer.TYPE || cls == int.class || cls == Integer.class) {
             return 0;
-        } else if (cls == Long.TYPE) {
+        } else if (cls == Long.TYPE || cls == long.class || cls == Long.class) {
             return (long) 0;
-        }  else if (cls == Float.TYPE) {
+        }  else if (cls == Float.TYPE || cls == float.class || cls == Float.class) {
             return 0.0F;
-        }  else if (cls == Double.TYPE) {
+        }  else if (cls == Double.TYPE || cls == double.class || cls == Double.class) {
             return 0.0;
-        }  else if (cls == Character.TYPE) {
+        }  else if (cls == Character.TYPE || cls == char.class || cls == Character.class) {
             return ((char) 0);
         }  else {
             Object objInstance = null;
@@ -284,7 +287,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     public static boolean isParentAnArray(AbstractBeanTreeNode childNode) {
         if(null != childNode && childNode.getParent() != null) {
             if(childNode.getParent() instanceof AbstractBeanTreeNode) {
-                AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode) childNode.getParent();
+                AbstractBeanTreeNode parentNode = childNode.getBeanParent();
                 return (parentNode.objType.isArray());
             }
         }
@@ -322,10 +325,18 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	}
 
     public void setValue(Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Object parsedString = parseObjectFromString(value.toString());
-        if(parsedString != null) {
-            this.setValueUsingSetMethod(parsedString);
-            this.setUserObject(parsedString);
+        Object valueToSet = value;
+        if(false == objType.isArray()) {
+            valueToSet = parseObjectFromString(value.toString());
+
+            if(null == valueToSet) {
+                valueToSet = value;
+            }
+        }
+
+        if(valueToSet != null) {
+            this.setValueUsingSetMethod(valueToSet);
+            this.setUserObject(valueToSet);
         }
     }
 
@@ -344,16 +355,43 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         Array.set(arrayObj, nodeIndex2, arrayElement1);
     }
 
+    /**
+     * Inserts a new array element at a specific position.
+     * @param arrayNode
+     * @param newArrayElementObj
+     * @param position Inserting the new object element at a specific position in the array object.
+     * @throws NoSuchMethodException
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     */
+    public void insertNewArrayElementAt(AbstractBeanTreeNode arrayNode, Object newArrayElementObj, int position) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        Object arrayObj = arrayNode.getUserObject();
+        int arrayOriginalLength = Array.getLength(arrayObj);
+        Class componentType = arrayNode.objType.getComponentType();
+        Object newArrayObj = Array.newInstance(componentType, arrayOriginalLength + 1);
 
-    public void insertNewArrayElement() {
-         // TODO 4 - Support add element
+        int i = 0;
+        for (; i < position; i++) {
+            Object arrayElement = Array.get(arrayObj, i);
+            Array.set(newArrayObj, i, arrayElement);
+        }
+
+        Array.set(newArrayObj, i, newArrayElementObj);
+
+        for (; i < arrayOriginalLength; i++) {
+            Object arrayElement = Array.get(arrayObj, i);
+            Array.set(newArrayObj, (i+1), arrayElement);
+        }
+
+        // If grandparent is also an array : set its relevant element with the new array
+        setArrayObjectToAncestryArrayNodes(arrayNode, newArrayObj);
     }
 
 
     /**
      * Removing an array-element in the original user-object (actually replacing with a new array)
-     * @param parentNode - The array itself
-     * @param nodeIndex - Index of the element (to be removed) in the array
+     * @param parentNode The relevant TreeNode that holds the original array object.
+     * @param nodeIndex Index of the element (to be removed) in the array
      * @throws NoSuchMethodException
      * @throws IllegalAccessException
      * @throws InvocationTargetException
@@ -377,18 +415,31 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }
 
         // If grandparent is also an array : set its relevant element with the new array
-        AbstractBeanTreeNode grandParentNode = parentNode.getBeanParent();
+        setArrayObjectToAncestryArrayNodes(parentNode, newArrayObj);
+    }
+
+    /**
+     *Sets the user-object to the array node. When grandparent is also an array - also sets its relevant element with the new array.
+     * @param arrayNode The relevant TreeNode that holds the original array object.
+     * @param newArrayObj The new array object to replace the original array object.
+     * @throws NoSuchMethodException
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     */
+    private void setArrayObjectToAncestryArrayNodes(AbstractBeanTreeNode arrayNode, Object newArrayObj) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        AbstractBeanTreeNode grandParentNode = arrayNode.getBeanParent();
         if(null != grandParentNode) {
             if(grandParentNode.objType.isArray()) {
-                int parentIndexInGrandParent = grandParentNode.getIndex(parentNode);
+                int parentIndexInGrandParent = grandParentNode.getIndex(arrayNode);
                 Array.set(grandParentNode.userObject, parentIndexInGrandParent, newArrayObj);
             } else {
-                parentNode.setValueUsingSetMethod(newArrayObj);
+                arrayNode.setValueUsingSetMethod(newArrayObj);
             }
         }
 
-        parentNode.setUserObject(newArrayObj);
+        arrayNode.setUserObject(newArrayObj);
     }
+
 
     public Object parseObjectFromString(String value) {
         if(objType == String.class) {
@@ -432,9 +483,28 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return null;
     }
 
+    private void instantiateAncestry() {
+        AbstractBeanTreeNode parentNode = this.getBeanParent();
+        while(parentNode != null && parentNode.getUserObject() == null) {
+            try {
+                parentNode.setValueUsingSetMethod(parentNode.getObjectDefaultValueInstance(parentNode.objType));
+                parentNode = parentNode.getBeanParent();
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
+    }
+
     private void setValueUsingSetMethod(Object value) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         // TODO 3 - beware of setting the root node (no parent) - possible??
-        AbstractBeanTreeNode parentNode = (AbstractBeanTreeNode)this.parent;
+        AbstractBeanTreeNode parentNode = this.getBeanParent();
+        if(parentNode != null && parentNode.getUserObject() == null) {
+            parentNode.setValueUsingSetMethod(parentNode.getObjectDefaultValueInstance(parentNode.objType));
+        }
         Object objInstance = parentNode.getUserObject();
 
         if(parentNode.objType.isArray()) {
@@ -443,7 +513,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         } else {
             // Checking also for "is" (not only for "get")
             String setMethodNameInParent = "set" + (getGetMethodInParent().startsWith("get") ? getGetMethodInParent().substring(3) : getGetMethodInParent().substring(2));
-            Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{userObject.getClass()});
+            Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{this.objType});
             if(objType.isEnum()) {
                 setMethodInParent.invoke(objInstance, new Object[] {Enum.valueOf((Class<Enum>) userObject.getClass(), value.toString())});
             } else {
@@ -521,8 +591,12 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		return null;
 	}
 
+    public Vector<AbstractBeanTreeNode> getVisibleChildren() {
+        return  this.children;
+    }
+
 	public Vector<AbstractBeanTreeNode> getHiddenChildren() {
-		return hiddenChildren;
+		return this.hiddenChildren;
 	}
 
     /*private static boolean isBean(Type type) {

@@ -22,6 +22,7 @@ import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -105,6 +106,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 	private JButton saveButton;
 	private JButton cancelButton;
 
+    private NewAction newAction;
 	private AddAction addAction;
 	private RemoveAction removeAction;
     private HideAction hideAction;
@@ -263,6 +265,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 		if (path != null) {
 			selectedNode = (AbstractBeanTreeNode) path.getLastPathComponent();
+            newAction.updateAction();
 			addAction.updateAction();
 			removeAction.updateAction();
             hideAction.updateAction();
@@ -326,6 +329,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		popup.add(collapseAction);
 		popup.add(expandAction);
 		popup.add(new JSeparator());
+        popup.add(newAction);
 		popup.add(addAction);
 		popup.add(removeAction);
 		popup.add(upAction);
@@ -362,7 +366,8 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 	@SuppressWarnings("serial")
 	public void buildAndShowDialog(Object root) throws Exception {
-		addAction = new AddAction(this);
+		newAction = new NewAction(this);
+        addAction = new AddAction(this);
 		removeAction = new RemoveAction(this);
 		upAction = new UpAction(this);
 		downAction = new DownAction(this);
@@ -615,6 +620,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 		toolbar.add(filterCombo);
 
+        toolbar.add(newAction);
 		toolbar.add(addAction);
 
 		toolbar.add(removeAction);
@@ -866,6 +872,64 @@ class CancelAction extends IgnisAction {
 }
 
 /**
+ * New instance action
+ */
+class NewAction extends IgnisAction {
+    private static final long serialVersionUID = 1L;
+    private BeanTreeDialog dialog;
+
+    NewAction(BeanTreeDialog dialog) {
+        putValue(Action.SHORT_DESCRIPTION, "New");
+        putValue(Action.NAME, "New");
+        putValue(Action.ACTION_COMMAND_KEY, "new");
+        putValue(Action.SMALL_ICON, ImageCenter.getInstance().getImage(ImageCenter.ICON_NEW));
+        putValue(Action.LARGE_ICON_KEY, ImageCenter.getInstance().getImage(ImageCenter.ICON_NEW));
+        this.dialog = dialog;
+        setEnabled(false);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        AbstractBeanTreeNode node = dialog.selectedNode;
+        switch (node.getNodeType()) {
+            case BEAN:
+
+
+                if(node.objType.isArray()) {
+                    // When instantiating and array: we first need to remove the tree-node's children from the tree
+                    dialog.treeTableModel.removeArrayNodeChildren(node);
+                }
+                Object newValue = node.getObjectDefaultValueInstance(node.objType);
+                dialog.treeTableModel.setValueAt(newValue, node, BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
+                break;
+            default:
+                return;
+        }
+    }
+
+    public void updateAction() {
+        switch (dialog.selectedNode.getNodeType()) {
+            case BEAN:
+                setEnabled(true);
+                break;
+            case ROOT:
+                putValue(Action.SHORT_DESCRIPTION, "New System Object");
+                setEnabled(dialog.enableAddToRoot);
+                break;
+            case PRIMITIVE:
+                putValue(Action.SHORT_DESCRIPTION, "New System Object");
+                setEnabled(true);
+                break;
+            default:
+                putValue(Action.SHORT_DESCRIPTION, "New");
+                setEnabled(false);
+
+        }
+    }
+}
+
+
+/**
  * Add action
  */
 class AddAction extends IgnisAction {
@@ -889,11 +953,29 @@ class AddAction extends IgnisAction {
 		Enumeration<AbstractBeanTreeNode> children = null;
 		switch (node.getNodeType()) {
 		case BEAN:
-            Object userObj = node.getUserObject();
-            if(userObj != null && userObj.getClass().isArray()) {
-                // Add a new child instance to the array
-                //node.addNewDefaultArrayElementChild();
-                dialog.treeTableModel.addArrayChildNode(node);
+            if(node.objType.isArray()) {
+                if(node.getUserObject() == null) {
+                    // Instantiating the array object (when null)
+                    Object newValue = node.getObjectDefaultValueInstance(node.objType);
+                    dialog.treeTableModel.setValueAt(newValue, node, BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
+                }
+
+                // Adds a new child instance to the array
+                dialog.treeTableModel.addArrayChildNode(node, node.getChildCount());
+            } else {
+                AbstractBeanTreeNode parentNode = node.getBeanParent();
+                if(parentNode != null) {
+                    if(parentNode.objType.isArray()) {
+                        int position = parentNode.getIndex(node);
+                        if(parentNode.getUserObject() == null) {
+                            // Instantiating the parent's array object (when null)
+                            Object newValue = parentNode.getObjectDefaultValueInstance(parentNode.objType);
+                            dialog.treeTableModel.setValueAt(newValue, parentNode, BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
+                        }
+
+                        dialog.treeTableModel.addArrayChildNode(parentNode, position);
+                    }
+                }
             }
 			baseClass = node.getClassName();
 			break;
@@ -945,25 +1027,23 @@ class AddAction extends IgnisAction {
 	}
 
 	public void updateAction() {
-		switch (dialog.selectedNode.getNodeType()) {
+        AbstractBeanTreeNode node = dialog.selectedNode;
+		switch (node.getNodeType()) {
 		// case SUB_SO:
-		case BEAN:
-			// case TAG:
-			// case OPTIONAL_TAG:
-			// putValue(Action.SHORT_DESCRIPTION, "Add");
-			// setEnabled(false);
-            Object userObj = dialog.selectedNode.getUserObject();
-            if(userObj != null && userObj.getClass().isArray()) {
+        case ROOT:
+        case BEAN:
+            if(node.objType.isArray()
+                    || (node.getParent() != null && node.getBeanParent().objType.isArray()))
+            {
                 putValue(Action.SHORT_DESCRIPTION, "Add Array Element");
                 setEnabled(true);
             } else {
                 setEnabled(false);
             }
 			break;
-		case ROOT:
-			putValue(Action.SHORT_DESCRIPTION, "Add System Object");
-			setEnabled(dialog.enableAddToRoot);
-			break;
+            //putValue(Action.SHORT_DESCRIPTION, "Add System Object");
+            //setEnabled(dialog.enableAddToRoot);
+          //break;
 		// case EXTENTION_ARRAY_SO:
 		// case ARRAY_SO:
 		// putValue(Action.SHORT_DESCRIPTION, "Add New Array Element");

@@ -246,15 +246,35 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         parent.insert(selectedNode, switchNodeIndex);
         modelSupport.fireChildAdded(parentPath, switchNodeIndex, selectedNode);
 
-        // Also update the original user-object
-        selectedNode.substitueArrayElementsOrder(parent, selectedNodeIndex, switchNodeIndex);
+        if(parent.objType.isArray()) {
+            // Also update the original user-object
+            selectedNode.substitueArrayElementsOrder(parent, selectedNodeIndex, switchNodeIndex);
+        }
     }
 
-    public void addArrayChildNode(AbstractBeanTreeNode parent) {
-        AbstractBeanTreeNode child = parent.addNewDefaultArrayElementChild();
+    public void addArrayChildNode(AbstractBeanTreeNode parent, int position) {
+        //int position = -1; // negative number adds an element at the end of the array - default when user elects "Add" over the array node.
+        if(position < 0) {
+            position = parent.getChildCount();
+        }
+        AbstractBeanTreeNode child = parent.generateNewDefaultArrayElementNode();
         if(null != child) {
-            TreePath parentPath = new TreePath(parent.getPath());
-            modelSupport.fireChildAdded(parentPath, parent.getChildCount() - 1, child);
+            try {
+                // First update the original user-object
+                rootNode.insertNewArrayElementAt(parent, child.getUserObject(), position);
+
+                parent.getVisibleChildren().insertElementAt(child, position);
+                child.setParent(parent); // Attach the child to its parent
+
+                TreePath parentPath = new TreePath(parent.getPath());
+                modelSupport.fireChildAdded(parentPath, position, child);
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            } catch (InvocationTargetException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
         }
     }
 
@@ -278,6 +298,19 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         } catch (NoSuchMethodException e) {
             // TODO 3 - React accordingly
             System.err.println("Missing Set Method : " + e.getMessage());
+        }
+    }
+
+    public void removeArrayNodeChildren(AbstractBeanTreeNode parent) {
+        int childCount = parent.getChildCount();
+        if(childCount > 0) {
+            int[] indices = new int[childCount];
+            for(int i = 0; i  < childCount; i++) {
+                indices[i] = i;
+            }
+
+            parent.removeAllChildren();
+            modelSupport.fireChildrenRemoved(new TreePath(parent.getPath()), indices, parent.getVisibleChildren().toArray());
         }
     }
 
