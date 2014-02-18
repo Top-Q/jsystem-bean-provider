@@ -892,15 +892,22 @@ class NewAction extends IgnisAction {
     public void actionPerformed(ActionEvent e) {
         AbstractBeanTreeNode node = dialog.selectedNode;
         switch (node.getNodeType()) {
+            case ROOT:
             case BEAN:
 
-
-                if(node.objType.isArray()) {
-                    // When instantiating and array: we first need to remove the tree-node's children from the tree
-                    dialog.treeTableModel.removeArrayNodeChildren(node);
-                }
                 Object newValue = node.getObjectDefaultValueInstance(node.objType);
                 dialog.treeTableModel.setValueAt(newValue, node, BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
+
+                if(node.getChildCount() > 0) {
+                    dialog.treeTableModel.removeArrayNodeChildren(node);
+                    node.getHiddenChildren().removeAllElements();
+
+                    if(false == node.objType.isArray()) {
+                        // When instantiating and array: we only need to remove the tree-node's children from the tree
+                        node.initChildren();
+                    }
+                }
+
                 break;
             default:
                 return;

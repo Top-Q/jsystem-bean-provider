@@ -124,22 +124,28 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
         //System.out.println("Value changed in node " + node.toString() + " : " + value.toString());
         if(node instanceof AbstractBeanTreeNode) {
             AbstractBeanTreeNode beanNode = (AbstractBeanTreeNode)node;
-            try {
-                beanNode.setValue(value);
 
-                // Update the row after the change - relevant especially for boolean values
-                AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
-                int nodeIndex = parent.getIndex(beanNode);
-                modelSupport.fireChildChanged(new TreePath(parent.getPath()), nodeIndex, node);
-            } catch (IllegalAccessException e) {
-                // TODO 3 - React accordingly
-                System.err.println(e.getMessage());
-            } catch (InvocationTargetException e) {
-                // TODO 3 - React accordingly
-                System.err.println(e.getMessage());
-            } catch (NoSuchMethodException e) {
-                // TODO 3 - React accordingly
-                System.err.println("Missing Set Method : " + e.getMessage());
+            if(node instanceof BeanRootNode) {
+                beanNode.setUserObject(value);
+                modelSupport.firePathChanged(new TreePath(beanNode.getPath()));
+            } else {
+                try {
+                    beanNode.setValue(value);
+
+                    // Update the row after the change - relevant especially for boolean values
+                    AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
+                    int nodeIndex = parent.getIndex(beanNode);
+                    modelSupport.fireChildChanged(new TreePath(parent.getPath()), nodeIndex, node);
+                } catch (IllegalAccessException e) {
+                    // TODO 3 - React accordingly
+                    System.err.println(e.getMessage());
+                } catch (InvocationTargetException e) {
+                    // TODO 3 - React accordingly
+                    System.err.println(e.getMessage());
+                } catch (NoSuchMethodException e) {
+                    // TODO 3 - React accordingly
+                    System.err.println("Missing Set Method : " + e.getMessage());
+                }
             }
         }
     }

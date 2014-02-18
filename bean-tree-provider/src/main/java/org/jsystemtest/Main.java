@@ -13,7 +13,7 @@ public class Main {
 
         Library lib = new Library();
 
-        /*Book b0 = new Book();
+        Book b0 = new Book();
 		b0.setTitle("The title");
 		b0.setAuthor("An author");
         b0.seteBookAvailable(true);
@@ -38,7 +38,7 @@ public class Main {
         //b1.setPage(new Page(6));
 
 		lib.setBook0(b0);
-		lib.setBook1(b1);*/
+		lib.setBook1(b1);
 
 		d.buildAndShowDialog(lib);
 
