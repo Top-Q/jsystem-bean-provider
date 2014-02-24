@@ -18,7 +18,7 @@ import org.jdesktop.swingx.treetable.AbstractTreeTableModel;
 public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEditorModel {
 
 	// private Object root;
-	private static AbstractBeanTreeNode rootNode;
+    private static AbstractBeanTreeNode rootNode;
 
 	private boolean hasChanged;
 

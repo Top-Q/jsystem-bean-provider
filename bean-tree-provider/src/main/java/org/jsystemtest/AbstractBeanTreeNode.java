@@ -3,7 +3,6 @@ package org.jsystemtest;
 import jsystem.framework.sut.SutValidationError;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.ClassUtils;
-//import org.apache.commons.lang.ClassUtils;
 
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.MutableTreeNode;
@@ -13,6 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+/**
+ * User: Moshe Goldyan (mgoldyan)
+ *
+ * Class which represents a TreeNode that contains a bean object.
+ * The TreeNode's children represent (recursively) the bean's properties (i.e. its public "get" or "is" methods).
+ */
 public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
 	private static final long serialVersionUID = 1L;
@@ -22,7 +27,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	}
 
 	/**
-	 * Type of the node.
+	 * Type of the node (enum).
 	 */
 	private NodeType nodeType;
     protected Vector<AbstractBeanTreeNode> hiddenChildren;
@@ -30,7 +35,7 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     protected Class<?> objType;
 	private String name;
     protected Object defaultValue;
-    protected String getMethodInParent;
+    protected String getMethodNameInParent;
 
     public Class<?> getObjType() {
         return objType;
@@ -48,22 +53,22 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return (AbstractBeanTreeNode) this.getParent();
     }
 
-    public String getGetMethodInParent() {
-        return getMethodInParent;
+    public String getGetMethodNameInParent() {
+        return getMethodNameInParent;
     }
 
-    public void setGetMethodInParent(String getMethodInParent) {
-        this.getMethodInParent = getMethodInParent;
+    public void setGetMethodNameInParent(String getMethodNameInParent) {
+        this.getMethodNameInParent = getMethodNameInParent;
     }
 
-    public AbstractBeanTreeNode(MutableTreeNode parent, NodeType nodeType, String name, Class<?> objType, Object userObject, Object defaultValue, String getMethodInParent) {
+    public AbstractBeanTreeNode(MutableTreeNode parent, NodeType nodeType, String name, Class<?> objType, Object userObject, Object defaultValue, String getMethodNameInParent) {
 		super(userObject);
 		this.nodeType = nodeType;
         this.objType = objType;
 		this.name = name;
 		this.parent = parent;
         this.defaultValue = defaultValue;
-        this.getMethodInParent = getMethodInParent;
+        this.getMethodNameInParent = getMethodNameInParent;
 	}
 
     @SuppressWarnings("unchecked")
@@ -103,7 +108,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                     //Object newInstance = objInstance != null ? objInstance.getClass().newInstance() : Class.forName(this.objType.getCanonicalName()).newInstance();
 					//TODO : Add factory
                     // TODO 3 - We need to make sure that methods that start with "is" are NOT named like: "isolateFromList" or "issueToLog"
-                    // TODO 3 - Handle Arrays & Lists
 
                     String name = methodName.startsWith("get") ? methodName.replaceFirst("get", "") : methodName.replaceFirst("is", "");
                     Object defaultValue = method.invoke(newInstance, new Object[] {});
@@ -135,6 +139,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 
 	}
 
+    /**
+     * Initializing the array's elements using the array's get method.
+     * Supports multi-dim arrays.
+     */
     public void initArrayElementChildren() {
         Object userObj = this.userObject;
         if(userObj != null) {
@@ -162,8 +170,9 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     }
 
     /**
-     *
-     * @return
+     * Generates a new AbstractBeanTreeNode which contains an array element.
+     * Note: The newly generated element may also be an array by itself.
+     * @return A new AbstractBeanTreeNode which contains an array element.
      */
     public AbstractBeanTreeNode generateNewDefaultArrayElementNode() {
         if (null == this.children) {
@@ -220,6 +229,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return method;
     }
 
+    /**
+     * @param objType The object's class type
+     * @return true iff type is of number (primitive or non-primitive), boolean, character or string.
+     */
     public static boolean isTypeNumberOrString(Class<?> objType) {
         return (objType == String.class
                 || objType == Boolean.class
@@ -227,10 +240,18 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 || objType == Character.class);
     }
 
+    /**
+     * @param objType The object's class type
+     * @return true iff type is of a number (primitive or non-primitive).
+     */
     public static boolean isObjTypeNumber(Class<?> objType) {
         return(objType.isPrimitive() || isObjTypeObjectNumber(objType));
     }
 
+    /**
+     * @param objType The object's class type
+     * @return true iff type is of a number (non-primitive only).
+     */
     public static boolean isObjTypeObjectNumber(Class<?> objType) {
         return (objType == Integer.class
                 || objType == Long.class
@@ -240,6 +261,12 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 || objType == Short.class);
     }
 
+    /**
+     * Generates a new default value for the given object-type.
+     *  Also supports multi-dim arrays.
+     * @param cls The object's class type
+     * @return A new default (object) value for the given object-type.
+     */
     public Object getObjectDefaultValueInstance(Class<?> cls) {
         if (cls == Boolean.TYPE || cls == boolean.class || cls == Boolean.class) {
             return Boolean.FALSE;
@@ -295,28 +322,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         return false;
     }
 
-
-    public String toString() {
-        return name;
-    }
-
-    public boolean isLeaf() {
-        return this.getChildCount() == 0;
-    }
-	
-	public Object getName() {
-		return name;
-	}
-
-	public NodeType getNodeType() {
-		return nodeType;
-	}
-
-	public void getValidationErrors(ArrayList<SutValidationError> nodeErrors) {
-		// TODO Auto-generated method stub
-
-	}
-
+    /**
+     * @return The string representation of the contained user-object (toString method).
+     *  For null user-object, an empty String is returned.
+     */
 	public Object getValue() {
 		if (userObject != null) {
 			return userObject.toString();
@@ -324,6 +333,13 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 		return "";
 	}
 
+    /**
+     * Sets a new value to the contained user-object, using the parent's "set" method (when possible).
+     * @param value The new value to set.
+     * @throws NoSuchMethodException
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     */
     public void setValue(Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         Object valueToSet = value;
         if(false == objType.isArray()) {
@@ -337,6 +353,48 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         if(valueToSet != null) {
             this.setValueUsingSetMethod(valueToSet);
             this.setUserObject(valueToSet);
+        }
+    }
+
+    /**
+     * Sets the user-object's value with a new value using the parent's "set" method.
+     * @param value The new value to set to the node's user-object.
+     * @throws NoSuchMethodException
+     * @throws InvocationTargetException
+     * @throws IllegalAccessException
+     */
+    private void setValueUsingSetMethod(Object value) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
+        // TODO 3 - beware of setting the root node (no parent) - possible??
+        AbstractBeanTreeNode parentNode = this.getBeanParent();
+        if(parentNode != null && parentNode.getUserObject() == null) {
+            parentNode.setValueUsingSetMethod(parentNode.getObjectDefaultValueInstance(parentNode.objType));
+        }
+        Object objInstance = parentNode.getUserObject();
+
+        if(parentNode.objType.isArray()) {
+            int indexInParent = parentNode.getIndex(this);
+            Array.set(parentNode.userObject, indexInParent, value);
+        } else {
+            // Checking also for "is" (not only for "get")
+            String setMethodNameInParent = "set" + (getGetMethodNameInParent().startsWith("get") ? getGetMethodNameInParent().substring(3) : getGetMethodNameInParent().substring(2));
+            Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{this.objType});
+            if(objType.isEnum()) {
+                setMethodInParent.invoke(objInstance, new Object[] {Enum.valueOf((Class<Enum>) userObject.getClass(), value.toString())});
+            } else {
+                Object valueToSet = value;
+                if(value.getClass().isArray()) {
+                    Class valueComponentType = value.getClass().getComponentType();
+                    Class setMethodComponentType = setMethodInParent.getParameterTypes()[0].getComponentType();
+                    if(setMethodComponentType.isPrimitive() && false == valueComponentType/*userObject.getClass()*/.isPrimitive()) {
+                        valueToSet = this.convertObjectArrayToPrimitiveArray(value, setMethodComponentType);
+                    } else if(false == setMethodComponentType.isPrimitive() && valueComponentType/*userObject.getClass()*/.isPrimitive()) {
+
+                        valueToSet = this.convertPrimitiveArrayToObjectArray(value, setMethodComponentType);
+                    }
+                }
+                this.userObject = valueToSet;
+                setMethodInParent.invoke(objInstance, new Object[] { valueToSet });
+            }
         }
     }
 
@@ -441,6 +499,11 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     }
 
 
+    /**
+     * Parses the text-value of String, char, enum, boolean or number into its actual value by its object type.
+     * @param value The given text.
+     * @return Parsed object from the given text, or null when object type is unsupported.
+     */
     public Object parseObjectFromString(String value) {
         if(objType == String.class) {
             return value;
@@ -499,41 +562,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }
     }
 
-    private void setValueUsingSetMethod(Object value) throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        // TODO 3 - beware of setting the root node (no parent) - possible??
-        AbstractBeanTreeNode parentNode = this.getBeanParent();
-        if(parentNode != null && parentNode.getUserObject() == null) {
-            parentNode.setValueUsingSetMethod(parentNode.getObjectDefaultValueInstance(parentNode.objType));
-        }
-        Object objInstance = parentNode.getUserObject();
-
-        if(parentNode.objType.isArray()) {
-            int indexInParent = parentNode.getIndex(this);
-            Array.set(parentNode.userObject, indexInParent, value);
-        } else {
-            // Checking also for "is" (not only for "get")
-            String setMethodNameInParent = "set" + (getGetMethodInParent().startsWith("get") ? getGetMethodInParent().substring(3) : getGetMethodInParent().substring(2));
-            Method setMethodInParent = objInstance.getClass().getMethod(setMethodNameInParent, new Class[]{this.objType});
-            if(objType.isEnum()) {
-                setMethodInParent.invoke(objInstance, new Object[] {Enum.valueOf((Class<Enum>) userObject.getClass(), value.toString())});
-            } else {
-                Object valueToSet = value;
-                if(value.getClass().isArray()) {
-                    Class valueComponentType = value.getClass().getComponentType();
-                    Class setMethodComponentType = setMethodInParent.getParameterTypes()[0].getComponentType();
-                    if(setMethodComponentType.isPrimitive() && false == valueComponentType/*userObject.getClass()*/.isPrimitive()) {
-                        valueToSet = this.convertObjectArrayToPrimitiveArray(value, setMethodComponentType);
-                    } else if(false == setMethodComponentType.isPrimitive() && valueComponentType/*userObject.getClass()*/.isPrimitive()) {
-
-                        valueToSet = this.convertPrimitiveArrayToObjectArray(value, setMethodComponentType);
-                    }
-                }
-                this.userObject = valueToSet;
-                setMethodInParent.invoke(objInstance, new Object[] { valueToSet });
-            }
-        }
-    }
-
 
     private Object convertObjectArrayToPrimitiveArray(Object objArray, Class destComponentType) {
         if (destComponentType == byte.class) {
@@ -579,16 +607,34 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
     }
 
 
+
+    public String toString() {
+        return name;
+    }
+
+    public boolean isLeaf() {
+        return this.getChildCount() == 0;
+    }
+
+    public Object getName() {
+        return name;
+    }
+
+    public NodeType getNodeType() {
+        return nodeType;
+    }
+
+    public void getValidationErrors(ArrayList<SutValidationError> nodeErrors) {
+        // TODO Auto-generated method stub
+
+    }
+
+
 	public String getClassName() {
 		if (userObject != null) {
 			return userObject.getClass().getSimpleName();
 		}
 		return "";
-	}
-
-	public String getArraySuperClassName() {
-		// TODO Auto-generated method stub
-		return null;
 	}
 
     public Vector<AbstractBeanTreeNode> getVisibleChildren() {
@@ -598,40 +644,6 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	public Vector<AbstractBeanTreeNode> getHiddenChildren() {
 		return this.hiddenChildren;
 	}
-
-    /*private static boolean isBean(Type type) {
-        // TODO 3 - might contain "int[]" or other strings that contain "int", "short" etc.
-        // Beans should have getters and setters methods, default constructor and implement Serializable
-        if (type.toString().contains("java.lang.String")) {
-            return false;
-        }
-        if (type.toString().contains("int")) {
-            return false;
-        }
-        if (type.toString().contains("boolean")) {
-            return false;
-        }
-        if (type.toString().contains("float")) {
-            return false;
-        }
-        if (type.toString().contains("double")) {
-            return false;
-        }
-        if (type.toString().contains("long")) {
-            return false;
-        }
-        if (type.toString().contains("byte")) {
-            return false;
-        }
-        if (type.toString().contains("short")) {
-            return false;
-        }
-        if (type.toString().contains("char")) {
-            return false;
-        }
-
-        return true;
-    }*/
 
 
     private <T> T instantiate(Class<T> cls, Map<String, ? extends Object> args) throws Exception

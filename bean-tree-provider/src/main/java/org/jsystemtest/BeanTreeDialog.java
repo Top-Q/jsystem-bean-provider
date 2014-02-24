@@ -80,7 +80,32 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 
 	protected BeanTreeTableModel treeTableModel = null;
 
-	protected boolean enableAddToRoot = true;
+    private JScrollPane treeTableScollPane = null;
+
+    public Object getRootObject() {
+        Object rootObj = null;
+        if(this.treeTableModel != null) {
+            Object rootNode = this.treeTableModel.getRoot();
+            if(rootNode != null && rootNode instanceof AbstractBeanTreeNode) {
+                rootObj = ((AbstractBeanTreeNode)rootNode).getUserObject();
+                System.out.println("getRootObj: " + (rootObj == null ? "null" : rootObj.toString()));
+            }
+        }
+
+        return rootObj;
+    }
+
+    private boolean saveClicked = false;
+
+    public boolean isSaveClicked() {
+        return saveClicked;
+    }
+
+    public void setSaveClicked(boolean saveClicked) {
+        this.saveClicked = saveClicked;
+    }
+
+    protected boolean enableAddToRoot = true;
 
 	/*
 	 * Window properties
@@ -216,7 +241,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 			}
 		}
 	}
-
+private static AbstractBeanTreeNode rootNode;
 	private int getIntValueFromObject(Object obj, int defaultValue, int maxSize) {
 		if (obj != null) {
 			try {
@@ -368,6 +393,146 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		return ((ClassPackage) selected).fullName;
 	}
 
+    public void buildDialog() {
+        newAction = new NewAction(this);
+        addAction = new AddAction(this);
+        removeAction = new RemoveAction(this);
+        upAction = new UpAction(this);
+        downAction = new DownAction(this);
+        hideAction = new HideAction(this);
+        cancelAction = new CancelAction(this);
+        saveAction = new SaveAction(this);
+        expandAction = new ExpandAction(this);
+        collapseAction = new CollapseAction(this);
+
+
+        setLayout(new BorderLayout());
+
+        JToolBar toolBar = SwingUtils.getJToolBarWithBgImage("Planner toolbar", JToolBar.HORIZONTAL, ImageCenter
+                .getInstance().getImage(ImageCenter.ICON_TOP_TOOLBAR_BG));
+
+        toolBar.setLayout(new FlowLayout(FlowLayout.LEFT, 4, 1));
+        toolBar.setFloatable(false);
+        toolBar.setRollover(true);
+        createToolBar(toolBar);
+
+        add(toolBar, BorderLayout.NORTH);
+        WaitDialog.endWaitDialog();
+        WaitDialog.launchWaitDialog("Loading beans...", null);
+
+
+        // Create the bottom panel
+        JPanel bottomPanel = SwingUtils.getJPannelWithBgImage(
+                ImageCenter.getInstance().getImage(ImageCenter.ICON_SCEANRIO_TOOLBAR_BG), 0);
+        bottomPanel.setLayout(new FlowLayout(FlowLayout.CENTER));
+
+        saveButton = new JButton(saveAction);
+        cancelButton = new JButton(cancelAction);
+        bottomPanel.add(saveButton);
+        bottomPanel.add(cancelButton);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+
+        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+    }
+
+    public void initTreeTableModel(Object root) {
+        if(this.treeTableScollPane != null) {
+            this.remove(this.treeTableScollPane);
+        }
+
+        try {
+            treeTableModel = BeanTreeTableModel.createNewModel(root);
+        } finally {
+            WaitDialog.endWaitDialog();
+        }
+        filterCombo.setModel(new DefaultComboBoxModel(BeanTreeTableModel.groups.toArray()) {
+            @Override
+            public int getSize() {
+                return BeanTreeTableModel.groups.toArray().length;
+            }
+
+            @Override
+            public Object getElementAt(int index) {
+                return BeanTreeTableModel.groups.toArray()[index];
+            }
+
+        });
+        filterCombo.setSelectedItem("");
+
+        treeTableModel.setHasChanged(false);
+        treeTable = new JXTreeTable(treeTableModel);
+
+        treeTable.setRootVisible(true);
+
+        ComplexCellEditor cce = new ComplexCellEditor(treeTableModel);
+        treeTable.getColumnModel().getColumn(BeanTreeTableModel.ColNames.CUR_VAL.ordinal()).setCellEditor(cce);
+
+        int currValueCol = BeanTreeTableModel.ColNames.CUR_VAL.ordinal();
+        TableColumn currValueColumn = treeTable.getColumnModel().getColumn(currValueCol);
+
+        currValueColumn.setCellRenderer(new BeanValueTableRenderer());
+        treeTable.setDefaultRenderer(Boolean.class, new BeanValueTableRenderer());
+
+        treeTable.getTreeSelectionModel().addTreeSelectionListener(this);
+
+        treeTable.setTreeCellRenderer(new BeanTreeRenderer());
+
+        currValueColumn.setCellRenderer(new BeanValueTableRenderer());
+        /*TableCellRenderer tableCellRenderer = treeTable.getColumn(currValueCol).getCellRenderer();
+        System.out.println(tableCellRenderer == null ? "No Cell Renderer" : tableCellRenderer.toString());*/
+
+        treeTable.addMouseListener(this);
+
+        treeTable.setSelectionBackground(Color.LIGHT_GRAY);
+        treeTable.setSelectionForeground(Color.BLACK);
+
+        treeTable.setBackground(new Color(0xf6, 0xf6, 0xf6));
+        JTableHeader treeTableHeader = treeTable.getTableHeader();
+        treeTableHeader.setBackground(new Color(0xe1, 0xe4, 0xe6));
+        treeTableHeader.setFont(new Font("sansserif", Font.BOLD, 11));
+
+        this.treeTableScollPane = SwingUtils.getJScrollPaneWithWaterMark(
+                ImageCenter.getInstance().getAwtImage(ImageCenter.ICON_TEST_TREE_BG), treeTable);
+        add(this.treeTableScollPane, BorderLayout.CENTER);
+
+
+        addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                if (treeTableModel.getHasChanged()) {
+                    int ans = JOptionPane.showConfirmDialog(BeanTreeDialog.this, getTitle()
+                            + " has been changed. Would you like to save changes?", getTitle(),
+                            JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
+                    switch (ans) {
+                        case JOptionPane.YES_OPTION:
+                            // treeTableModel.toXml();
+                            dispose();
+                            break;
+                        case JOptionPane.NO_OPTION:
+                            dispose();
+                            break;
+                        case JOptionPane.CANCEL_OPTION:
+                            break;
+                        default:
+                            break;
+                    }
+                } else {
+                    dispose();
+                }
+            }
+        });
+
+        treeTable.expandAll();
+    }
+
+    public void showDialog() {
+        setFocusable(true);
+        pack();
+
+        settingColumnsWidth();
+        setVisible(true);
+    }
+
 	@SuppressWarnings("serial")
 	public void buildAndShowDialog(Object root) throws Exception {
 		newAction = new NewAction(this);
@@ -394,6 +559,7 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 		add(toolBar, BorderLayout.NORTH);
 		WaitDialog.endWaitDialog();
 		WaitDialog.launchWaitDialog("Loading beans...", null);
+
 		try {
 			treeTableModel = BeanTreeTableModel.createNewModel(root);
 		} finally {
@@ -488,7 +654,6 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
         TableCellRenderer tableCellRenderer = treeTable.getColumn(1).getCellRenderer();
         System.out.println(tableCellRenderer == null ? "No Cell Renderer" : tableCellRenderer.toString());
 
-
 		treeTable.addMouseListener(this);
 
 		treeTable.setSelectionBackground(Color.LIGHT_GRAY);
@@ -549,7 +714,9 @@ public class BeanTreeDialog extends JDialog implements TreeSelectionListener, Mo
 	}
 
 	public void expandAll() {
-		treeTable.expandAll();
+        if(treeTable != null) {
+		    treeTable.expandAll();
+        }
 	}
 
 	/**
@@ -849,7 +1016,8 @@ class SaveAction extends IgnisAction {
 		// dialog.treeTableModel.setHasChanged(false);
 		// }
 		// }
-		// dialog.dispose();
+        dialog.setSaveClicked(true);
+        dialog.dispose();
 	}
 }
 
@@ -870,6 +1038,7 @@ class CancelAction extends IgnisAction {
 
 	@Override
 	public void actionPerformed(ActionEvent e) {
+        dialog.setSaveClicked(false);
 		dialog.dispose();
 	}
 
@@ -904,7 +1073,10 @@ class NewAction extends IgnisAction {
 
                 if(node.getChildCount() > 0) {
                     dialog.treeTableModel.removeArrayNodeChildren(node);
-                    node.getHiddenChildren().removeAllElements();
+
+                    if(node.getHiddenChildren() != null) {
+                        node.getHiddenChildren().removeAllElements();
+                    }
 
                     if(false == node.objType.isArray()) {
                         // When instantiating and array: we only need to remove the tree-node's children from the tree
@@ -1333,7 +1505,7 @@ class DelaiedUpdater extends Thread {
 		}
 		updated = false;
 		model.refresh();
-		std.expandAll();
+		/***std.expandAll();***/
 	}
 
 	public boolean update() {

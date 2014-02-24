@@ -2,21 +2,19 @@ package jsystem.extensions.paramproviders;
 
 import java.awt.Component;
 
-import javax.swing.JFrame;
-
 import jsystem.framework.scenario.Parameter;
 import jsystem.framework.scenario.ParameterProvider;
 import jsystem.framework.scenario.RunnerTest;
 import jsystem.framework.scenario.Scenario;
 
-import org.apache.commons.lang3.StringUtils;
 import org.jsystemtest.BeanTreeDialog;
 
 import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.io.xml.DomDriver;
 
 
 public class BeanTreeParameterProvider implements ParameterProvider{
+
+    static BeanTreeDialog d;
 
 	@Override
 	public void setProviderConfig(String... args) {
@@ -25,28 +23,46 @@ public class BeanTreeParameterProvider implements ParameterProvider{
 
 	@Override
 	public String getAsString(Object o) {
-		if (o == null){
+        if (o == null){
 			return "";
 		}
-        XStream xStream = new XStream(new DomDriver());
-        return xStream.toXML(o);
+        XStream xStream = new XStream(/*new DomDriver()*/);
+        String strRepresentation =  xStream.toXML(o);
+
+        return strRepresentation;
 	}
 
 	@Override
 	public Object getFromString(String stringRepresentation) throws Exception {
-		if (StringUtils.isEmpty(stringRepresentation)){
-			return new Object();
-		}
-		XStream xStream = new XStream(new DomDriver());
-		return xStream.fromXML(stringRepresentation);
+        XStream xStream = new XStream(/*new DomDriver()*/);
+        Object obj = xStream.fromXML(stringRepresentation);
+
+		return obj;
 	}
 
 	@Override
 	public Object showUI(Component parent, Scenario currentScenario, RunnerTest rtest, Class<?> classType,
 			Object object, Parameter parameter) throws Exception {
-		BeanTreeDialog d = new BeanTreeDialog((JFrame)parent,"Bean Tree Parameter Provider");
-		d.buildAndShowDialog(object);
-		return object;
+
+        if(d == null) {
+		    d = new BeanTreeDialog(/*(JFrame)parent, */"Bean Tree Parameter Provider");
+            d.buildDialog();
+        }
+		//d.buildAndShowDialog(object);
+
+        d.initTreeTableModel(object);
+        d.showDialog();
+
+        if(d.isSaveClicked()) { // User clicked Save
+            // NOTE: returning the original "object" doesn't work! (bug?)
+            // it's a good question why is this happening...
+            String strObj = getAsString(object);
+            return getFromString(strObj);
+            //return object;
+            //return d.getRootObject();
+        }
+
+        return object; // User clicked Cancel
 	}
 
 	@Override

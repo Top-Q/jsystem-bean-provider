@@ -1,5 +1,7 @@
 package org.jsystemtest;
 
+import com.thoughtworks.xstream.XStream;
+import org.jsystemtest.bean.Author;
 import org.jsystemtest.bean.Book;
 import org.jsystemtest.bean.Library;
 import org.jsystemtest.bean.Page;
@@ -11,7 +13,7 @@ public class Main {
 	public static void main(String[] args) throws Exception {
 		BeanTreeDialog d = new BeanTreeDialog("CloudBand's Inspection Tree");
 
-        Library lib = new Library();
+        /*Library objInstance = new Library();
 
         Book b0 = new Book();
 		b0.setTitle("The title");
@@ -37,11 +39,36 @@ public class Main {
 		//b1.setPages(4);
         //b1.setPage(new Page(6));
 
-		lib.setBook0(b0);
-		lib.setBook1(b1);
+		objInstance.setBook0(b0);
+		objInstance.setBook1(b1);
 
-		d.buildAndShowDialog(lib);
+		//d.buildAndShowDialog(objInstance);
+*/
 
+        Author objInstance = new Author();
+        objInstance.setName("Obama");
+        //d.buildAndShowDialog(author);
+
+        XStream xs = new XStream();
+        String strObj = xs.toXML(objInstance);
+
+        // Testing single build and double show
+        d.buildDialog();
+        d.initTreeTableModel(objInstance);
+        d.showDialog();
+
+        System.out.println((((AbstractBeanTreeNode) (d.treeTableModel.getRoot())).getUserObject()));
+
+        if(d.isSaveClicked()) {
+            Object obj = d.getRootObject();
+            d.initTreeTableModel(obj);
+        } else {
+            Object obj = xs.fromXML(strObj);
+            d.initTreeTableModel(obj);
+        }
+        d.showDialog();
+
+        System.out.println((((AbstractBeanTreeNode)(d.treeTableModel.getRoot())).getUserObject()));
 	}
 
 }
