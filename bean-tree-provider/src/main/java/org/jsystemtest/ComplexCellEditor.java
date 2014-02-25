@@ -48,7 +48,6 @@ public class ComplexCellEditor extends AbstractCellEditor implements TableCellEd
                 // Set a specific icon for each node type
                 switch(node.getNodeType()) {
                     case ROOT:
-                        break;
                     case BEAN:
                         if(node.getObjType() == Boolean.class) {
                             JCheckBox checkBox = new JCheckBox(value.toString());

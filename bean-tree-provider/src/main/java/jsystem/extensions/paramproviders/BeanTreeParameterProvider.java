@@ -50,19 +50,18 @@ public class BeanTreeParameterProvider implements ParameterProvider{
         }
 		//d.buildAndShowDialog(object);
 
+        String strObj = getAsString(object);
+
         d.initTreeTableModel(object);
         d.showDialog();
 
         if(d.isSaveClicked()) { // User clicked Save
             // NOTE: returning the original "object" doesn't work! (bug?)
             // it's a good question why is this happening...
-            String strObj = getAsString(object);
-            return getFromString(strObj);
-            //return object;
-            //return d.getRootObject();
+            strObj = getAsString(d.getRootObject()); //return object; //return d.getRootObject();
         }
 
-        return object; // User clicked Cancel
+        return getFromString(strObj); // User clicked Cancel
 	}
 
 	@Override

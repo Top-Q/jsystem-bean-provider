@@ -334,13 +334,14 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	}
 
     /**
-     * Sets a new value to the contained user-object, using the parent's "set" method (when possible).
+     * Sets a new value to the contained user-object as the parsed object.
      * @param value The new value to set.
+     * @return Parsed object.
      * @throws NoSuchMethodException
      * @throws IllegalAccessException
      * @throws InvocationTargetException
      */
-    public void setValue(Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+    private Object setValue(Object value) {
         Object valueToSet = value;
         if(false == objType.isArray()) {
             valueToSet = parseObjectFromString(value.toString());
@@ -351,9 +352,38 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
         }
 
         if(valueToSet != null) {
-            this.setValueUsingSetMethod(valueToSet);
             this.setUserObject(valueToSet);
         }
+
+        return valueToSet;
+    }
+
+    /**
+     *
+     * @param value The new value to set to the ROOT bean node.
+     * @return Parsed object.
+     */
+    public Object setValueToRootNode(Object value) {
+        return setValue(value);
+    }
+
+    /**
+     * Sets a new value to the contained user-object, using the parent's "set" method (when possible).
+     * @param value The new value to set.
+     * @return Parsed object.
+     * @throws NoSuchMethodException
+     * @throws IllegalAccessException
+     * @throws InvocationTargetException
+     *
+     */
+    public Object setValueToNonRootNode(Object value) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        Object valueToSet = setValue(value);
+
+        if(valueToSet != null) {
+            this.setValueUsingSetMethod(valueToSet); // No "set" method when node is the root
+        }
+
+        return valueToSet;
     }
 
     /**

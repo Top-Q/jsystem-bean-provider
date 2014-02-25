@@ -126,11 +126,12 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
             AbstractBeanTreeNode beanNode = (AbstractBeanTreeNode)node;
 
             if(node instanceof BeanRootNode) {
-                beanNode.setUserObject(value);
+                //beanNode.setUserObject(value);
+                beanNode.setValueToRootNode(value);
                 modelSupport.firePathChanged(new TreePath(beanNode.getPath()));
             } else {
                 try {
-                    beanNode.setValue(value);
+                    beanNode.setValueToNonRootNode(value);
 
                     // Update the row after the change - relevant especially for boolean values
                     AbstractBeanTreeNode parent = ((AbstractBeanTreeNode)(beanNode.getParent()));
@@ -325,6 +326,10 @@ public class BeanTreeTableModel extends AbstractTreeTableModel implements CellEd
 		rootNode = new BeanRootNode(null, AbstractBeanTreeNode.NodeType.ROOT, root.getClass().getSimpleName(),
 				root.getClass(), root);
         rootNode.initChildren();
+        if(rootNode.objType.isArray()) {
+            rootNode.initArrayElementChildren();
+        }
+
 		return new BeanTreeTableModel(rootNode);// rootNode);
 	}
 

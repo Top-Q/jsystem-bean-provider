@@ -1135,6 +1135,7 @@ class AddAction extends IgnisAction {
 		String baseClass = null;
 		Enumeration<AbstractBeanTreeNode> children = null;
 		switch (node.getNodeType()) {
+        case ROOT:
 		case BEAN:
             if(node.objType.isArray()) {
                 if(node.getUserObject() == null) {
@@ -1170,9 +1171,6 @@ class AddAction extends IgnisAction {
 		// break;
 		case PRIMITIVE:
 			baseClass = node.getClassName();
-			break;
-		case ROOT:
-			baseClass = null;
 			break;
 		// case SUB_SO:
 		// case TAG:

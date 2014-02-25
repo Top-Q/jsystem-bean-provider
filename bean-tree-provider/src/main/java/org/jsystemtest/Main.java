@@ -13,7 +13,7 @@ public class Main {
 	public static void main(String[] args) throws Exception {
 		BeanTreeDialog d = new BeanTreeDialog("CloudBand's Inspection Tree");
 
-        /*Library objInstance = new Library();
+        /*Library lib = new Library();
 
         Book b0 = new Book();
 		b0.setTitle("The title");
@@ -39,22 +39,43 @@ public class Main {
 		//b1.setPages(4);
         //b1.setPage(new Page(6));
 
-		objInstance.setBook0(b0);
-		objInstance.setBook1(b1);
+		lib.setBook0(b0);
+        lib.setBook1(b1);
 
 		//d.buildAndShowDialog(objInstance);
-*/
 
-        Author objInstance = new Author();
-        objInstance.setName("Obama");
-        //d.buildAndShowDialog(author);
 
-        XStream xs = new XStream();
-        String strObj = xs.toXML(objInstance);
+        Author author = new Author();
+        author.setName("Obama");*/
+
+        Integer param2 = new Integer(4);
+        String[] names = new String[0];
+
+        Object objInstance = names;
+
+        String str = getAsString(objInstance);
 
         // Testing single build and double show
         d.buildDialog();
+
         d.initTreeTableModel(objInstance);
+        d.showDialog();
+
+        if(d.isSaveClicked()) { // User clicked Save
+            objInstance = d.getRootObject();
+            str = getAsString(objInstance);
+            //str = getAsString(objInstance);
+            //objInstance = getFromString(str);
+        }
+
+        objInstance = getFromString(str);
+
+        d.initTreeTableModel(objInstance);
+        d.showDialog();
+
+
+
+        /*d.initTreeTableModel(objInstance);
         d.showDialog();
 
         System.out.println((((AbstractBeanTreeNode) (d.treeTableModel.getRoot())).getUserObject()));
@@ -67,8 +88,26 @@ public class Main {
             d.initTreeTableModel(obj);
         }
         d.showDialog();
+*/
 
         System.out.println((((AbstractBeanTreeNode)(d.treeTableModel.getRoot())).getUserObject()));
 	}
+
+    public static String getAsString(Object o) {
+        if (o == null){
+            return "";
+        }
+        XStream xStream = new XStream(/*new DomDriver()*/);
+        String strRepresentation =  xStream.toXML(o);
+
+        return strRepresentation;
+    }
+
+    public static Object getFromString(String stringRepresentation) throws Exception {
+        XStream xStream = new XStream(/*new DomDriver()*/);
+        Object obj = xStream.fromXML(stringRepresentation);
+
+        return obj;
+    }
 
 }
