@@ -1,16 +1,23 @@
 package org.jsystemtest;
 
-import jsystem.framework.sut.SutValidationError;
-import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.lang3.ClassUtils;
-
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.MutableTreeNode;
-import java.lang.reflect.*;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.MutableTreeNode;
+
+import jsystem.framework.sut.SutValidationError;
+
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.ClassUtils;
+
 
 /**
  * User: Moshe Goldyan (mgoldyan)
@@ -72,7 +79,8 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 	}
 
     @SuppressWarnings("unchecked")
-	protected void initChildren() {
+	protected void initChildren() throws SecurityException, ClassNotFoundException {
+    	
 		if (null == children) {
 			children = new Vector<AbstractBeanTreeNode>();
 		}
@@ -88,11 +96,23 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
                 objInstance = this.getObjectDefaultValueInstance(objType);
             }
         }
-		Method[] methods = objInstance.getClass().getMethods();
+		Method[] methods = BeanObjectTreeNode.class
+                .getClassLoader()
+                .loadClass(objInstance.getClass().getName())
+                .getMethods();//objInstance.getClass().getMethods();
 		for (Method method : methods) {
+			boolean ignoreField = false;
+				// check if the method is annotated if so - get the ignoreField value for later use
+				if (method.isAnnotationPresent(BeanTreeAnnotation.class)){
+					BeanTreeAnnotation methodAnno = method
+                            .getAnnotation(BeanTreeAnnotation.class);
+					ignoreField = methodAnno.ignoreField();
+				}
+
+			 //TODO
             String methodName = method.getName();
 			if ((methodName.startsWith("get") || methodName.startsWith("is"))
-					&& method.getParameterTypes().length == 0) {
+					&& method.getParameterTypes().length == 0 && !ignoreField) {
 				if (method.getName().equals("getClass")) {
 					continue;
 				}
@@ -136,14 +156,15 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
 				}
 			}
 		}
-
-	}
+    }
 
     /**
      * Initializing the array's elements using the array's get method.
      * Supports multi-dim arrays.
+     * @throws ClassNotFoundException 
+     * @throws SecurityException 
      */
-    public void initArrayElementChildren() {
+    public void initArrayElementChildren() throws SecurityException, ClassNotFoundException {
         Object userObj = this.userObject;
         if(userObj != null) {
             if (null == this.children) {
@@ -173,8 +194,10 @@ public abstract class AbstractBeanTreeNode extends DefaultMutableTreeNode {
      * Generates a new AbstractBeanTreeNode which contains an array element.
      * Note: The newly generated element may also be an array by itself.
      * @return A new AbstractBeanTreeNode which contains an array element.
+     * @throws ClassNotFoundException 
+     * @throws SecurityException 
      */
-    public AbstractBeanTreeNode generateNewDefaultArrayElementNode() {
+    public AbstractBeanTreeNode generateNewDefaultArrayElementNode() throws SecurityException, ClassNotFoundException {
         if (null == this.children) {
             this.children = new Vector<AbstractBeanTreeNode>();
         }

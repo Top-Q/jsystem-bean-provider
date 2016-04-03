@@ -436,7 +436,7 @@ private static AbstractBeanTreeNode rootNode;
         setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
     }
 
-    public void initTreeTableModel(Object root) {
+    public void initTreeTableModel(Object root) throws SecurityException, ClassNotFoundException {
         if(this.treeTableScollPane != null) {
             this.remove(this.treeTableScollPane);
         }
@@ -1080,7 +1080,15 @@ class NewAction extends IgnisAction {
 
                     if(false == node.objType.isArray()) {
                         // When instantiating and array: we only need to remove the tree-node's children from the tree
-                        node.initChildren();
+                        try {
+							node.initChildren();
+						} catch (SecurityException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						} catch (ClassNotFoundException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
                     }
                 }
 
@@ -1145,7 +1153,15 @@ class AddAction extends IgnisAction {
                 }
 
                 // Adds a new child instance to the array
-                dialog.treeTableModel.addArrayChildNode(node, node.getChildCount());
+                try {
+					dialog.treeTableModel.addArrayChildNode(node, node.getChildCount());
+				} catch (SecurityException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				} catch (ClassNotFoundException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
             } else {
                 AbstractBeanTreeNode parentNode = node.getBeanParent();
                 if(parentNode != null) {
@@ -1157,7 +1173,15 @@ class AddAction extends IgnisAction {
                             dialog.treeTableModel.setValueAt(newValue, parentNode, BeanTreeTableModel.ColNames.CUR_VAL.ordinal());
                         }
 
-                        dialog.treeTableModel.addArrayChildNode(parentNode, position);
+                        try {
+							dialog.treeTableModel.addArrayChildNode(parentNode, position);
+						} catch (SecurityException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						} catch (ClassNotFoundException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
                     }
                 }
             }
